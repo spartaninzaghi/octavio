@@ -28,7 +28,7 @@ static const int spiClk = 1000000; // 1 MHz
 
 SPIClass *hspi = NULL;
 
-static constexpr size_t SLAVE1_BUFFER_SIZE = SLAVE1_KEY_COUNT;
+static constexpr size_t SLAVE1_BUFFER_SIZE = 4;
 static const uint8_t slave1Notes[SLAVE1_KEY_COUNT] = {0x3C, 0x3D}; // for testing
 
 uint8_t receivedVelocities[SLAVE1_BUFFER_SIZE];
@@ -54,7 +54,7 @@ BLECharacteristic *pCharacteristic = NULL;
 bool deviceConnected = false;
 bool previousDeviceConnected = false;
 
-// --------------- Function Declarations ---------------
+// ------------------------- Function Declarations ---------------------------
 void querySlave(SPIClass *spi, const int ss);
 void sendMidiMsgUpdatesOverBLE();
 
@@ -80,7 +80,7 @@ void setup()
   pinMode(LED, OUTPUT);
 
   //
-  // --------------------- SPI Setup ---------------------
+  // ------------------------------ SPI Setup -----------------------------
   //
 
   // Initialize SPI and wait 2 seconds (2000 ms) to guarantee robust setup
@@ -96,7 +96,7 @@ void setup()
   memset(receivedVelocities, 0, SLAVE1_BUFFER_SIZE);
 
   //
-  // ---------------------- BLE Setup ----------------------
+  // ----------------------------- BLE Setup -----------------------------
   //
 
   // Initialize BLE Device
@@ -194,19 +194,19 @@ void querySlave(SPIClass *spi, const int ss)
  */
 void sendMidiMsgUpdatesOverBLE()
 {
-  for (int i = 0; i < SLAVE1_KEY_COUNT; i++)
-  {
-    Serial.println("Key: ");
-    Serial.println(slave1Notes[i]);
-    Serial.println("Received: ");
-    Serial.println((int)receivedVelocities[i]);
-    Serial.println("Previous: ");
-    Serial.println((int)previousVelocities[i]);
+  // for (int i = 0; i < SLAVE1_KEY_COUNT; i++)
+  // {
+  //   Serial.println("Key: ");
+  //   Serial.println(slave1Notes[i]);
+  //   Serial.println("Received: ");
+  //   Serial.println((int)receivedVelocities[i]);
+  //   Serial.println("Previous: ");
+  //   Serial.println((int)previousVelocities[i]);
 
-  }
+  // }
   if (memcmp(receivedVelocities, previousVelocities, SLAVE1_BUFFER_SIZE) != 0)
   {
-    for (int i = 0; i < SLAVE1_KEY_COUNT; i++)
+    for (int i = 2; i < SLAVE1_KEY_COUNT; i++)
     {
       bool noteVelocityChanged = (receivedVelocities[i] != previousVelocities[i]);
 
@@ -219,6 +219,14 @@ void sendMidiMsgUpdatesOverBLE()
         pCharacteristic->notify();
 
         previousVelocities[i] = receivedVelocities[i];
+
+        Serial.print("Key: ");
+        Serial.print(slave1Notes[i]);
+        Serial.print(" | Received: ");
+        Serial.print((int)receivedVelocities[i]);
+        Serial.print(" | Previous: ");
+        Serial.print((int)previousVelocities[i]);
+        Serial.println();
       }
     }
   }

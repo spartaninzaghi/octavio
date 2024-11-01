@@ -47,7 +47,7 @@ struct Key
 
 ESP32SPISlave slave;
 
-static constexpr size_t BUFFER_SIZE = 2;
+static constexpr size_t BUFFER_SIZE = 4;
 static constexpr size_t QUEUE_SIZE = 1;
 
 uint8_t noteVelocities[BUFFER_SIZE];
@@ -73,27 +73,18 @@ void setup()
   delay(2000);
 
   // initiate spi instance
+  pinMode(HSPI_MISO, OUTPUT);
   slave.setDataMode(SPI_MODE0);
   slave.setQueueSize(QUEUE_SIZE);
 
   slave.begin(HSPI, HSPI_SCLK, HSPI_MISO, HSPI_MOSI, HSPI_SS);
-  pollNoteVelocities();
 }
 
 void loop()
 {
-  if (slave.hasTransactionsCompletedAndAllResultsHandled())
-  {
-    pollNoteVelocities();
-    slave.queue(noteVelocities, NULL, BUFFER_SIZE);
-    slave.trigger();
-  }
-
-  if (slave.hasTransactionsCompletedAndAllResultsReady(QUEUE_SIZE))
-  {
-    const std::vector<size_t> received_bytes = slave.numBytesReceivedAll();
-  }
-
+  pollNoteVelocities();
+  slave.queue(noteVelocities, NULL, BUFFER_SIZE);
+  slave.wait();
 }
 
 /**
@@ -113,6 +104,8 @@ void pollNoteVelocities()
     Serial.print("Key "); // Print which key is being read
     Serial.print(i);
     Serial.print(": ");
-    Serial.println((int)noteVelocities[i]); // Print the velocity
+    Serial.print((int)noteVelocities[i]); // Print the velocity
+    Serial.print(" | ");
   }
+  Serial.println();
 }
