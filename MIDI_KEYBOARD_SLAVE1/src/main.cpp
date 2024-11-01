@@ -47,14 +47,14 @@ struct Key
 
 ESP32SPISlave slave;
 
-static constexpr size_t BUFFER_SIZE = 4;
-static constexpr size_t QUEUE_SIZE = 1;
+static constexpr size_t BUFFER_SIZE = 4; // Size of buffer to hold tx rx data
+static constexpr size_t QUEUE_SIZE = 1;  // Num of transaction b/n slave & master
 
 uint8_t noteVelocities[BUFFER_SIZE];
 
 const int keys[KEY_COUNT] {KEY_3, KEY_4};
 
-// Function declarations
+// --------------------------- Function declarations ---------------------------
 void pollNoteVelocities();
 
 void setup()
@@ -68,7 +68,7 @@ void setup()
 
   for (int i = 0; i < BUFFER_SIZE; i++)
   {
-    noteVelocities[i] = 0x00;
+    noteVelocities[i] = 0;
   }
   delay(2000);
 
@@ -83,8 +83,24 @@ void setup()
 void loop()
 {
   pollNoteVelocities();
-  slave.queue(noteVelocities, NULL, BUFFER_SIZE);
-  slave.wait();
+
+  //
+  // if there is currently no transaction in flight b/n slave and master
+  // and all results have been handled, queue new transactions
+  //
+  if (slave.hasTransactionsCompletedAndAllResultsHandled())
+  {
+    slave.queue(noteVelocities, NULL, BUFFER_SIZE);
+    slave.trigger();
+  }
+  //
+  // if all transactions are complete and all results (from master) are
+  // ready, handle results
+  //
+  if (slave.hasTransactionsCompletedAndAllResultsReady(QUEUE_SIZE))
+  {
+    const std::vector<size_t> receivedBytes = slave.numBytesReceivedAll();
+  }  
 }
 
 /**
@@ -101,11 +117,12 @@ void pollNoteVelocities()
     int analogValue = analogRead(keys[i]);
     noteVelocities[i] = static_cast<uint8_t>(map(analogValue, 0, 4095, 0, 127));
 
-    Serial.print("Key "); // Print which key is being read
-    Serial.print(i);
-    Serial.print(": ");
-    Serial.print((int)noteVelocities[i]); // Print the velocity
-    Serial.print(" | ");
+    // --- uncomment to view data on key presses
+    // Serial.print("Key "); // Print which key is being read
+    // Serial.print(i);
+    // Serial.print(": ");
+    // Serial.print((int)noteVelocities[i]); // Print the velocity
+    // Serial.print(" | ");
   }
   Serial.println();
 }
