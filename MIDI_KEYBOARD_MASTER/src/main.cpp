@@ -21,10 +21,11 @@
 #define NOTE_OFF     0x80
 #define VELOCITY_ON  0x7F // for testing purposes
 #define VELOCITY_OFF 0x00 // for testing purposes
+#define MIN_VELOCITY 0x05 // to filter out noisy presses
 
 #define SLAVE1_KEY_COUNT 2
 
-static const int spiClk = 1000000; // 1 MHz
+static const int spiClk = 5000000; // 5 MHz -- max: 10 MHz but choose value < 7.5 MHz
 
 SPIClass *hspi = NULL;
 
@@ -34,6 +35,13 @@ static const uint8_t slave1Notes[SLAVE1_KEY_COUNT] = {0x3C, 0x3D}; // for testin
 uint8_t receivedVelocities[SLAVE1_BUFFER_SIZE];
 uint8_t previousVelocities[SLAVE1_BUFFER_SIZE];
 
+struct Slave 
+{
+  const int id;
+  const int keyCount;
+  const size_t bufferSize;
+};
+
 struct MidiMessage
 {
   uint8_t header;
@@ -42,6 +50,8 @@ struct MidiMessage
   uint8_t note;
   uint8_t velocity;
 };
+
+const Slave slave1 = {1, 2, 4};
 
 // BLE UUIDs
 #define SERVICE_UUID "03B80E5A-EDE8-4B33-A751-6CE34EC4C700"
@@ -89,6 +99,7 @@ void setup()
   delay(2000);
 
   pinMode(HSPI_SS, OUTPUT);
+  pinMode(HSPI_MOSI, OUTPUT);
   digitalWrite(HSPI_SS, HIGH);
   hspi->begin(HSPI_SCLK, HSPI_MISO, HSPI_MOSI, HSPI_SS);
 
@@ -143,7 +154,6 @@ void loop()
   if (deviceConnected)
   {
     querySlave(hspi, HSPI_SS);
-    delay(10); // delay 10 milliseconds as slave responds
     sendMidiMsgUpdatesOverBLE();
     previousDeviceConnected = true; // Update the previous connection state
   }
@@ -194,31 +204,20 @@ void querySlave(SPIClass *spi, const int ss)
  */
 void sendMidiMsgUpdatesOverBLE()
 {
-  // for (int i = 0; i < SLAVE1_KEY_COUNT; i++)
-  // {
-  //   Serial.println("Key: ");
-  //   Serial.println(slave1Notes[i]);
-  //   Serial.println("Received: ");
-  //   Serial.println((int)receivedVelocities[i]);
-  //   Serial.println("Previous: ");
-  //   Serial.println((int)previousVelocities[i]);
-
-  // }
   if (memcmp(receivedVelocities, previousVelocities, SLAVE1_BUFFER_SIZE) != 0)
   {
-    for (int i = 2; i < SLAVE1_KEY_COUNT; i++)
+    // ESP is little endian. Read buffer from LSB
+    for (int i = 0; i < SLAVE1_KEY_COUNT; i++)
     {
       bool noteVelocityChanged = (receivedVelocities[i] != previousVelocities[i]);
 
       if (noteVelocityChanged)
       {
-        uint8_t status = (receivedVelocities[i] > 0) ? NOTE_ON : NOTE_OFF;
+        uint8_t status = (receivedVelocities[i] > MIN_VELOCITY) ? NOTE_ON : NOTE_OFF;
         uint8_t message[5] = {HEADER, TIMESTAMP, status, slave1Notes[i], receivedVelocities[i]};
-        delay(50);
+        delay(50); // wait 50ms to buffer BLE transmission
         pCharacteristic->setValue(message, sizeof(message));
         pCharacteristic->notify();
-
-        previousVelocities[i] = receivedVelocities[i];
 
         Serial.print("Key: ");
         Serial.print(slave1Notes[i]);
@@ -227,6 +226,8 @@ void sendMidiMsgUpdatesOverBLE()
         Serial.print(" | Previous: ");
         Serial.print((int)previousVelocities[i]);
         Serial.println();
+
+        previousVelocities[i] = receivedVelocities[i];
       }
     }
   }
