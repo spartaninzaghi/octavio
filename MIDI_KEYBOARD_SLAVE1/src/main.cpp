@@ -1,18 +1,20 @@
 /**
  * @file main.cpp
  * @author Mate Narh
- * 
+ *
  * Driver code for Slave 1 ESP32-WROOM-32 25-Key MIDI keyboard
- * 
+ *
  * Slave 1 handles I/O for the first octave of the keyboard. i.e.
  * the first 12 keys: 1 - 12
- * 
- * With the capabilities of the ESP32-S3 MCU, more peripherals 
+ *
+ * With the capabilities of the ESP32-S3 MCU, more peripherals
  * can be attached to this implementation to expand features.
  */
 #include <Arduino.h>
+#include <ESP32SPISlave.h>
 
-#define KEY_1  36 
+// Key ADC Pins on 
+#define KEY_1  36
 #define KEY_2  39
 #define KEY_3  34
 #define KEY_4  35
@@ -25,91 +27,92 @@
 #define KEY_11 12
 #define KEY_12 13
 
-#define HEADER    0x80
-#define TIMESTAMP 0x80
-#define NOTE_ON   0x90
-#define NOTE_OFF  0x80
+#define LED 2
 
-struct Key 
+#define HSPI_MISO 12
+#define HSPI_MOSI 13
+#define HSPI_SCLK 14
+#define HSPI_SS   15
+
+// Key constant helpers
+#define KEY_COUNT   2 // for testing purposes
+#define START_INDEX 0
+#define STOP_INDEX  0
+
+struct Key
 {
-  const int pin; 
+  const int pin;
   uint8_t note;
 };
 
-struct MidiMessage
+ESP32SPISlave slave;
+
+static constexpr size_t BUFFER_SIZE = 2;
+static constexpr size_t QUEUE_SIZE = 1;
+
+uint8_t noteVelocities[BUFFER_SIZE];
+
+const int keys[KEY_COUNT] {KEY_3, KEY_4};
+
+// Function declarations
+void pollNoteVelocities();
+
+void setup()
 {
-  uint8_t header;
-  uint8_t timeStamp;
-  uint8_t status;
-  uint8_t note;
-  uint8_t channel;
-};
-
-int value;
-uint8_t status;
-uint8_t velocity;
-
-int prevKeyVelocities[12] = {0};
-
-const Key keys[] = {
-  {KEY_1,  60}, // Starts at Middle C: C3 | 0x3C
-  {KEY_2,  61},
-  {KEY_3,  62},
-  {KEY_4,  63},
-  {KEY_5,  64},
-  {KEY_6,  65},
-  {KEY_7,  66},
-  {KEY_8,  67},
-  {KEY_9,  68},
-  {KEY_10, 69},
-  {KEY_11, 70},
-  {KEY_12, 71}
-};
-
-void setup() {
+  Serial.begin(115200);
 
   // Sample analog pins at 12-bit resolution: 0-4095
   analogReadResolution(12);
-  
-  // Set up analog pins as pullup
-  for (int i = 0; i < 12; i++)
+
+  pinMode(LED, OUTPUT);
+
+  for (int i = 0; i < BUFFER_SIZE; i++)
   {
-    pinMode(keys[i].pin, INPUT_PULLUP);
+    noteVelocities[i] = 0x00;
   }
+  delay(2000);
+
+  // initiate spi instance
+  slave.setDataMode(SPI_MODE0);
+  slave.setQueueSize(QUEUE_SIZE);
+
+  slave.begin(HSPI, HSPI_SCLK, HSPI_MISO, HSPI_MOSI, HSPI_SS);
+  pollNoteVelocities();
 }
 
-void loop() {
-
-  /**
-   * For each key
-   *   1. Extract its velocity
-   *   2. if the velocity changed since the last recorded value
-   *       2a. key status is NOTE_ON if velocity > 0 else NOTE_OFF
-   *       2b. Wrap data into MIDI message and send to master over SPI
-   */
-  for (int i = 0; i < 12; i++)
+void loop()
+{
+  if (slave.hasTransactionsCompletedAndAllResultsHandled())
   {
-    value = analogRead(keys[i].pin);
-    velocity = map(value, 0, 4095, 0, 127);
-
-    bool velocityChanged = (prevKeyVelocities[i] != velocity);
-
-    // if the state of this key changed, update its prev state to curr state
-    if (velocityChanged)
-    {
-      status = (velocity > 0) ? NOTE_ON : NOTE_OFF;
-
-      const MidiMessage message 
-      {
-        HEADER, 
-        TIMESTAMP, 
-        status, 
-        keys[i].note,
-        velocity
-      };
-
-      prevKeyVelocities[i] = velocity;
-    }
+    pollNoteVelocities();
+    slave.queue(noteVelocities, NULL, BUFFER_SIZE);
+    slave.trigger();
   }
-  
+
+  if (slave.hasTransactionsCompletedAndAllResultsReady(QUEUE_SIZE))
+  {
+    const std::vector<size_t> received_bytes = slave.numBytesReceivedAll();
+  }
+
+}
+
+/**
+ * @brief Update the velocity of each note of this slave in readiness for master query
+ * 
+ * This function reads the current analog value of each note's velocity and feeds into
+ * the `noteVelocities` buffer.
+ * @return
+ */
+void pollNoteVelocities()
+{
+  for (int i = 0; i < KEY_COUNT; i++)
+  {
+    int analogValue = analogRead(keys[i]);
+    noteVelocities[i] = static_cast<uint8_t>(map(analogValue, 0, 4095, 0, 127));
+
+    Serial.print("Key "); // Print which key is being read
+    Serial.print(i);
+    Serial.print(": ");
+    Serial.println((int)noteVelocities[i]); // Print the velocity
+  }
 }
