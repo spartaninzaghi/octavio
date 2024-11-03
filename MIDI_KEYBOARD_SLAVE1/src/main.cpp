@@ -13,6 +13,8 @@
 #include <Arduino.h>
 #include <ESP32SPISlave.h>
 
+#include "KeyController.h"
+
 // Key ADC Pins on 
 #define KEY_1  36
 #define KEY_2  39
@@ -29,100 +31,48 @@
 
 #define LED 2
 
-#define HSPI_MISO 12
-#define HSPI_MOSI 13
-#define HSPI_SCLK 14
-#define HSPI_SS   15
-
 // Key constant helpers
-#define KEY_COUNT   2 // for testing purposes
-#define START_INDEX 0
-#define STOP_INDEX  0
+#define KEY_COUNT   2    // for testing purposes
+#define START_NOTE  0x3C // Middle C: C3 | (int) 60 
 
-struct Key
-{
-  const int pin;
-  uint8_t note;
-};
+#define RESOLUTION  12
+#define THRESHOLD   15
 
-ESP32SPISlave slave;
+#define SPI_MISO HSPI_MISO
+#define SPI_BUS  HSPI
+#define SPI_MODE SPI_MODE0
 
 static constexpr size_t BUFFER_SIZE = 4; // Size of buffer to hold tx rx data
 static constexpr size_t QUEUE_SIZE = 1;  // Num of transaction b/n slave & master
 
-uint8_t noteVelocities[BUFFER_SIZE];
+KeyController* octave = nullptr;
 
-const int keys[KEY_COUNT] {KEY_3, KEY_4};
+const int pins[KEY_COUNT] {KEY_3, KEY_4};
 
 // --------------------------- Function declarations ---------------------------
-void pollNoteVelocities();
 
 void setup()
 {
   Serial.begin(115200);
 
   // Sample analog pins at 12-bit resolution: 0-4095
-  analogReadResolution(12);
+  analogReadResolution(RESOLUTION);
 
   pinMode(LED, OUTPUT);
 
-  for (int i = 0; i < BUFFER_SIZE; i++)
-  {
-    noteVelocities[i] = 0;
-  }
+  //
+  // Create new key controller
+  //
+  octave = new KeyController(KEY_COUNT, pins, START_NOTE, THRESHOLD, RESOLUTION);
+  
   delay(2000);
 
   // initiate spi instance
-  pinMode(HSPI_MISO, OUTPUT);
-  slave.setDataMode(SPI_MODE0);
-  slave.setQueueSize(QUEUE_SIZE);
-
-  slave.begin(HSPI, HSPI_SCLK, HSPI_MISO, HSPI_MOSI, HSPI_SS);
+  pinMode(SPI_MISO, OUTPUT);
+  octave->initializeSpi(SPI_BUS, SPI_MODE, BUFFER_SIZE, QUEUE_SIZE);
 }
 
 void loop()
 {
-  pollNoteVelocities();
-
-  //
-  // if there is currently no transaction in flight b/n slave and master
-  // and all results have been handled, queue new transactions
-  //
-  if (slave.hasTransactionsCompletedAndAllResultsHandled())
-  {
-    slave.queue(noteVelocities, NULL, BUFFER_SIZE);
-    slave.trigger();
-  }
-  //
-  // if all transactions are complete and all results (from master) are
-  // ready, handle results
-  //
-  if (slave.hasTransactionsCompletedAndAllResultsReady(QUEUE_SIZE))
-  {
-    const std::vector<size_t> receivedBytes = slave.numBytesReceivedAll();
-  }  
-}
-
-/**
- * @brief Update the velocity of each note of this slave in readiness for master query
- * 
- * This function reads the current analog value of each note's velocity and feeds into
- * the `noteVelocities` buffer.
- * @return
- */
-void pollNoteVelocities()
-{
-  for (int i = 0; i < KEY_COUNT; i++)
-  {
-    int analogValue = analogRead(keys[i]);
-    noteVelocities[i] = static_cast<uint8_t>(map(analogValue, 0, 4095, 0, 127));
-
-    // --- uncomment to view data on key presses
-    // Serial.print("Key "); // Print which key is being read
-    // Serial.print(i);
-    // Serial.print(": ");
-    // Serial.print((int)noteVelocities[i]); // Print the velocity
-    // Serial.print(" | ");
-  }
-  Serial.println();
+  octave->run();
 }

@@ -5,23 +5,10 @@
 #include <BLE2902.h>
 #include <SPI.h>
 
+#include <Utility.h>
+
 // Indicators
 #define LED 2
-
-// SPI Communication: HSPI Pins
-#define HSPI_MISO 12
-#define HSPI_MOSI 13
-#define HSPI_SCLK 14
-#define HSPI_SS   15
-
-// MIDI Constants
-#define HEADER       0x80
-#define TIMESTAMP    0x80
-#define NOTE_ON      0x90
-#define NOTE_OFF     0x80
-#define VELOCITY_ON  0x7F // for testing purposes
-#define VELOCITY_OFF 0x00 // for testing purposes
-#define MIN_VELOCITY 0x05 // to filter out noisy presses
 
 #define SLAVE1_KEY_COUNT 2
 
@@ -30,32 +17,15 @@ static const int spiClk = 5000000; // 5 MHz -- max: 10 MHz but choose value < 7.
 SPIClass *hspi = NULL;
 
 static constexpr size_t SLAVE1_BUFFER_SIZE = 4;
-static const uint8_t slave1Notes[SLAVE1_KEY_COUNT] = {0x3C, 0x3D}; // for testing
-
-uint8_t receivedVelocities[SLAVE1_BUFFER_SIZE];
-uint8_t previousVelocities[SLAVE1_BUFFER_SIZE];
-
-struct Slave 
-{
-  const int id;
-  const int keyCount;
-  const size_t bufferSize;
-};
-
-struct MidiMessage
-{
-  uint8_t header;
-  uint8_t timeStamp;
-  uint8_t status;
-  uint8_t note;
-  uint8_t velocity;
-};
+static const uint8_t slave1Notes[SLAVE1_KEY_COUNT]{0x3C, 0x3D}; // for testing
 
 const Slave slave1 = {1, 2, 4};
 
-// BLE UUIDs
-#define SERVICE_UUID "03B80E5A-EDE8-4B33-A751-6CE34EC4C700"
-#define CHARACTERISTIC_UUID "7772E5DB-3868-4112-A1A9-F2669D106BF3"
+uint8_t slave1Response[SLAVE1_BUFFER_SIZE]{0};
+
+uint8_t receivedReadiness[SLAVE1_KEY_COUNT];
+uint8_t receivedVelocities[SLAVE1_KEY_COUNT];
+uint8_t receivedStatuses[SLAVE1_KEY_COUNT];
 
 // Create BLE Server and Characteristic
 BLEServer *pServer = NULL;
@@ -103,9 +73,6 @@ void setup()
   digitalWrite(HSPI_SS, HIGH);
   hspi->begin(HSPI_SCLK, HSPI_MISO, HSPI_MOSI, HSPI_SS);
 
-  memset(previousVelocities, 0, SLAVE1_BUFFER_SIZE);
-  memset(receivedVelocities, 0, SLAVE1_BUFFER_SIZE);
-
   //
   // ----------------------------- BLE Setup -----------------------------
   //
@@ -122,11 +89,10 @@ void setup()
 
   // Create BLE Characteristic with read, write-no-response, and notify properties
   pCharacteristic = pService->createCharacteristic(
-    BLEUUID(CHARACTERISTIC_UUID),
-    BLECharacteristic::PROPERTY_READ     |
-    BLECharacteristic::PROPERTY_WRITE_NR |
-    BLECharacteristic::PROPERTY_NOTIFY   
-  );
+      BLEUUID(CHARACTERISTIC_UUID),
+      BLECharacteristic::PROPERTY_READ |
+          BLECharacteristic::PROPERTY_WRITE_NR |
+          BLECharacteristic::PROPERTY_NOTIFY);
 
   // Add the descriptor for notifications
   pCharacteristic->addDescriptor(new BLE2902());
@@ -138,7 +104,7 @@ void setup()
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(pService->getUUID());
   pAdvertising->setScanResponse(true);
-  pAdvertising->setMinPreferred(0x06); // Minimum connection time: 
+  pAdvertising->setMinPreferred(0x06); // Minimum connection time:
   pAdvertising->setMaxPreferred(0x12); //
   pAdvertising->start();
   Serial.println("Waiting for a client connection...");
@@ -154,7 +120,6 @@ void loop()
   if (deviceConnected)
   {
     querySlave(hspi, HSPI_SS);
-    sendMidiMsgUpdatesOverBLE();
     previousDeviceConnected = true; // Update the previous connection state
   }
 
@@ -172,7 +137,7 @@ void loop()
   {
     // do stuff here on connecting
     previousDeviceConnected = deviceConnected;
-  } 
+  }
 }
 
 /**
@@ -188,11 +153,29 @@ void loop()
  */
 void querySlave(SPIClass *spi, const int ss)
 {
-  spi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE0));
-  digitalWrite(ss, LOW);
-  spi->transferBytes(NULL, receivedVelocities, SLAVE1_BUFFER_SIZE);
-  digitalWrite(ss, HIGH);
-  spi->endTransaction();
+  // ESP is little endian. Read buffer from LSB
+  for (int i = 0; i < SLAVE1_KEY_COUNT; i++)
+  {
+    spi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE0));
+    digitalWrite(ss, LOW);
+    spi->transferBytes(NULL, slave1Response, SLAVE1_BUFFER_SIZE);
+    digitalWrite(ss, HIGH);
+    spi->endTransaction();
+
+    uint8_t readiness = slave1Response[0];
+
+    if (readiness = 0x01)
+    {
+      uint8_t note = slave1Notes[i];
+      uint8_t status = slave1Response[1];
+      uint8_t velocity = slave1Response[2];
+
+      uint8_t message[5] = {HEADER, TIMESTAMP, note, status, velocity};
+      delay(10); // wait 10ms to buffer BLE transmission
+      pCharacteristic->setValue(message, sizeof(message));
+      pCharacteristic->notify();
+    }
+  }
 }
 
 /**
@@ -204,31 +187,13 @@ void querySlave(SPIClass *spi, const int ss)
  */
 void sendMidiMsgUpdatesOverBLE()
 {
-  if (memcmp(receivedVelocities, previousVelocities, SLAVE1_BUFFER_SIZE) != 0)
+  // ESP is little endian. Read buffer from LSB
+  for (int i = 0; i < SLAVE1_KEY_COUNT; i++)
   {
-    // ESP is little endian. Read buffer from LSB
-    for (int i = 0; i < SLAVE1_KEY_COUNT; i++)
-    {
-      bool noteVelocityChanged = (receivedVelocities[i] != previousVelocities[i]);
-
-      if (noteVelocityChanged)
-      {
-        uint8_t status = (receivedVelocities[i] > MIN_VELOCITY) ? NOTE_ON : NOTE_OFF;
-        uint8_t message[5] = {HEADER, TIMESTAMP, status, slave1Notes[i], receivedVelocities[i]};
-        delay(50); // wait 50ms to buffer BLE transmission
-        pCharacteristic->setValue(message, sizeof(message));
-        pCharacteristic->notify();
-
-        Serial.print("Key: ");
-        Serial.print(slave1Notes[i]);
-        Serial.print(" | Received: ");
-        Serial.print((int)receivedVelocities[i]);
-        Serial.print(" | Previous: ");
-        Serial.print((int)previousVelocities[i]);
-        Serial.println();
-
-        previousVelocities[i] = receivedVelocities[i];
-      }
-    }
+    uint8_t status = (receivedVelocities[i] > MIN_VELOCITY) ? NOTE_ON : NOTE_OFF;
+    uint8_t message[5] = {HEADER, TIMESTAMP, status, slave1Notes[i], receivedVelocities[i]};
+    delay(50); // wait 50ms to buffer BLE transmission
+    pCharacteristic->setValue(message, sizeof(message));
+    pCharacteristic->notify();
   }
 }
