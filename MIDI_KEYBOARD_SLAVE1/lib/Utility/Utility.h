@@ -9,7 +9,6 @@
 #define UTILITY_H
 
 #include <Arduino.h>
-#include <ESP32SPISlave.h>
 
 // #define HEADER    0x80
 // #define TIMESTAMP 0x80
@@ -40,11 +39,6 @@
 #define VELOCITY_ON   0x7F // for testing purposes
 #define VELOCITY_OFF  0x00 // for testing purposes
 
-#define HSPI_MISO 12
-#define HSPI_MOSI 13
-#define HSPI_SCLK 14
-#define HSPI_SS   15
-
 #define LED 2
 
 struct MidiMessage
@@ -71,6 +65,20 @@ struct MidiMessage
 //   {KEY_11, 70}, // 10
 //   {KEY_12, 71}  // 11
 // };
+
+// Key ADC Pins on 
+#define KEY_1  36
+#define KEY_2  39
+#define KEY_3  34
+#define KEY_4  35
+#define KEY_5  32
+#define KEY_6  33
+#define KEY_7  25
+#define KEY_8  26
+#define KEY_9  27
+#define KEY_10 14
+#define KEY_11 12
+#define KEY_12 13
 
 
 

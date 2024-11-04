@@ -4,8 +4,9 @@
  */
  
 #include "KeyController.h"
+#include <ESP32SPIslave.h>
 
-ESP32SPISlave slave;
+ESP32SPISlave* slave;
 
 static constexpr size_t BUFFER_SIZE = 4; // Size of buffer to hold tx rx data
 static constexpr size_t QUEUE_SIZE = 1;  // Num of transaction b/n slave & master
@@ -34,7 +35,7 @@ KeyController::KeyController(const size_t keyCount, const int *pins, uint8_t sta
     //
     int maxAdcValue = (1 << resolution) - 1; 
 
-    for (int i = 0; i < 0; i++)
+    for (int i = 0; i < keyCount; i++)
     {
         // Set up the note for this key by adding the offset to the reference note
         uint8_t note = static_cast<uint8_t>(startNote + i);
@@ -42,6 +43,9 @@ KeyController::KeyController(const size_t keyCount, const int *pins, uint8_t sta
         //
         // Create a pointer to this key and store it in the array for all keys
         //
+        Serial.print("Current pin: ");
+        Serial.print(pins[i]);
+        Serial.println();
         mKeys[i] = new Key(pins[i], note, maxAdcValue, threshold);
     }
 }
@@ -61,22 +65,26 @@ KeyController::~KeyController()
  * @param bufferSize The size of the buffer used in communicating with master
  * @param queueSize The size of the queue used in communicating with master
  */
-void KeyController::initializeSpi(const int spiBus, const int spiMode, const size_t bufferSize, const size_t queueSize)
+void KeyController::initializeSpi(const uint8_t spiBus, const int spiMode, const size_t bufferSize, const size_t queueSize)
 {
-    slave.setDataMode(SPI_MODE0);
-    slave.setQueueSize(queueSize);
+    delay(2000);
+
+    slave = new ESP32SPISlave;
+    slave->setDataMode(SPI_MODE0);
+    slave->setQueueSize(queueSize);
 
     mBufferSize = bufferSize;
     mQueueSize = queueSize;
 
     if (spiBus == HSPI)
     {
-        slave.begin(HSPI, HSPI_SCLK, HSPI_MISO, HSPI_MOSI, HSPI_SS);
+        slave->begin(HSPI, HSPI_SCLK, HSPI_MISO, HSPI_MOSI, HSPI_SS);
     }
     else if (spiBus == VSPI) 
     {
-        slave.begin(VSPI, VSPI_SCLK, VSPI_MISO, VSPI_MOSI, VSPI_SS);
+        slave->begin(VSPI, VSPI_SCLK, VSPI_MISO, VSPI_MOSI, VSPI_SS);
     }
+    Serial.println("Done setting up SPI");
 }
 
 /**
@@ -89,6 +97,34 @@ void KeyController::run()
         Key* key = mKeys[i];
 
         key->Update();
-        key->SendMessageToMaster(&slave, mBufferSize, mQueueSize);
+
+        uint8_t* message = key->GetCurrentMessageForMaster();
+
+        //
+        // if there is currently no transaction in flight b/n slave and master
+        // and all results have been handled, queue new transactions
+        //
+        if (slave->hasTransactionsCompletedAndAllResultsHandled())
+        {
+            if (message[0] == 0x01)
+            {
+                Serial.print(" | Status: ");
+                Serial.print(message[1]);
+                Serial.print(" | Velocity: ");
+                Serial.print(message[2]);
+                Serial.println();
+            }
+            
+            slave->queue(message, NULL, mBufferSize);
+            slave->trigger();
+        }
+        //
+        // if all transactions are complete and all results (from master) are
+        // ready, handle results
+        //
+        if (slave->hasTransactionsCompletedAndAllResultsReady(mQueueSize))
+        {
+            const std::vector<size_t> receivedBytes = slave->numBytesReceivedAll();
+        }
     }
 }

@@ -23,9 +23,18 @@ private:
     
     int mMaxAdcValue = 12;       ///< The max value read on the ADC pin of this key
     uint8_t mThreshold = 20;     ///< Cutoff to discriminate b/n presses and noise
+
+    enum State {Idle, ReadyForNoteOn, ReadyForNoteOff};
+
+    State mState = Idle;
     
     bool mReadyForMidi = false;  ///< This note is ready to send a midi message
     bool mNoteOnSent = false;    ///< Has the velocity of this key been sent
+    bool mNoteOffSent = false;   ///<
+
+    uint8_t mPreviousVelocity = 0; 
+    uint8_t mReadinessByte = 0x00;
+
 
 public:
 
@@ -38,6 +47,7 @@ public:
     void SetStatus(uint8_t status);
     void SetVelocity(uint8_t velocity);
     void SetNoteOnSent(bool sent);
+    void SetNoteOffSent(bool sent);
     void SetThreshold(uint8_t threshold);
 
     // ----------------------------------- Getters ---------------------------------
@@ -45,11 +55,13 @@ public:
     uint8_t GetNote();
     uint8_t GetStatus();
     uint8_t GetVelocity();
+    uint8_t* GetCurrentMessageForMaster();
+    bool GetNoteOnSent();
+    bool GetNoteOffSent();
     bool IsReadyForMidi();
 
     // --------------------------------- Core Methods ------------------------------
     void Update();
-    void SendMessageToMaster(ESP32SPISlave * const slave, const size_t bufferSize, const size_t queueSize);
 
     Key() = default;
     Key(const Key &) = delete;

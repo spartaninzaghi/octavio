@@ -11,8 +11,9 @@
 #ifndef KEY_CONTROLLER_H
 #define KEY_CONTROLLER_H
 
-#include <Key.h>
 #include <Utility.h>
+#include <Key.h>
+// #include <ESP32SPISlave.h>
 
 
 class KeyController
@@ -36,7 +37,7 @@ public:
     ~KeyController();
 
     void run();
-    void initializeSpi(const int spiBus, const int spiMode, const size_t bufferSize, const size_t queueSize);
+    void initializeSpi(const uint8_t spiBus, const int spiMode, const size_t bufferSize, const size_t queueSize);
 
     KeyController() = delete;
     KeyController(const KeyController &) = delete;

@@ -7,6 +7,8 @@
 
 #include "Key.h"
 
+uint8_t message[4] {0, 0, 0, 0};
+
 /**
  * Constructor
  * @param pin The GPIO pin bound to this key
@@ -48,7 +50,26 @@ void Key::SetVelocity(uint8_t velocity)
  */
 void Key::SetNoteOnSent(bool sent)
 {
-    mNoteOnSent = true;
+    mNoteOnSent = sent;
+}
+
+/**
+ * @brief Set whether the note of this key has been sent or not
+ * @param sent 
+ */
+void Key::SetNoteOffSent(bool sent)
+{
+    mNoteOffSent = sent;
+}
+
+
+/**
+ * @brief Set the threshold at which this key validates a key press
+ * @param threshold The threshold to set
+ */
+void Key::SetThreshold(uint8_t threshold)
+{
+    mThreshold = threshold;
 }
 
 /**
@@ -75,6 +96,23 @@ uint8_t Key::GetVelocity()
     return mVelocity;
 }
 
+
+/**
+ * Indicate whether a NOTE ON message has been sent for this key
+ */
+bool Key::GetNoteOnSent()
+{
+    return mNoteOnSent;
+}
+
+/**
+ * Indicate whether a NOTE ON message has been sent for this key
+ */
+bool Key::GetNoteOffSent()
+{
+    return mNoteOffSent;
+}
+
 /**
  * @brief Return the note that this key sounds 
  */
@@ -97,89 +135,89 @@ bool Key::IsReadyForMidi()
 void Key::Update()
 {
     int value = analogRead(mPin);
-    uint8_t velocity = map(value, 0, 4095, 0, 127);
+    uint8_t velocity = map(value, 0, 4095, 0, 127); 
 
-    //
-    // Velocity is in valid range, send NOTE ON message if it is the peak and
-    // a NOTE ON message has not been sent already
-    //
-    if (velocity > mThreshold)
+    switch(mState)
     {
-        //
-        // Prepare to send a NoteOn message for this velocity if not ready yet.
-        // Capture the first ever peak detected by the piezo-sensor and ignore
-        // the rest
-        //
-        if (!mNoteOnSent)
-        {
+        case Idle:
+            //
+            // If the current velocity exceeds the thresholds but has
+            // not been sent, transition to th ReadyForNoteOn state
+            //
+            if (velocity > mThreshold && !mNoteOnSent)
+            {
+                mState = ReadyForNoteOn;
+            }
+            
+            //
+            // If the current velocity is at or lower than the threshold
+            // transition to the ReadyForNoteOff state
+            //
+            if (velocity <= mThreshold && mNoteOnSent)
+            {
+                mState = ReadyForNoteOff;
+            }
+
+            mReadinessByte = 0x00;
+            break;
+
+        case ReadyForNoteOn:
+            mStatus = NOTE_ON;
+            mVelocity = velocity;
+            mNoteOnSent = true;
+
+            mState = Idle;
+
+            Serial.println("Current state: ReadyForNoteOn");
+
+
+            // Debug lines
             mStatus = NOTE_ON;
             mVelocity = velocity;
             mReadyForMidi = true;
-        }
-        else
-        {
-            mReadyForMidi = false;
-        }
-        
-    }
-    //
-    // Velocity is within the OFF range. Send a NOTE OFF message corresponding to
-    // the most recent NOTE ON message
-    //
-    else
-    {
-        //
-        // Every NOTE ON message requires its corresponding NOTE OFF message, 
-        // otherwise the note will play forever.
-        // https://www.cs.cmu.edu/~music/cmsip/readings/MIDI%20tutorial%20for%20programmers.html
-        //
-        if (mNoteOnSent)
-        {
+            mNoteOnSent = true;
+            mReadinessByte = 0x01;
+            Serial.print("Updating key: ");
+            Serial.print(mPin);
+            Serial.print(" | Current Velocity: ");
+            Serial.print(mVelocity);
+            Serial.print(" | Threshold: ");
+            Serial.print(mThreshold);
+            Serial.print(" | Time (s): ");
+            Serial.print(millis()/1000.0);
+            Serial.println();
+            break;
+
+        case ReadyForNoteOff:
             mStatus = NOTE_OFF;
             mVelocity = 0;
-            mReadyForMidi = true;
-        }
-        else
-        {
-            mReadyForMidi = false;
-        }
+            mNoteOnSent = false;
+            mReadinessByte = 0x01;
+
+            mState = Idle;
+
+            Serial.println("Current state: ReadyForNoteOff");
+
+            // Debug lines
+            Serial.print("NOTE OFF >> Current mVelocity: ");
+            Serial.print(mVelocity);
+            Serial.print(" | Current Velocity: ");
+            Serial.print(velocity);
+            Serial.print(" | Threshold: ");
+            Serial.print("Sending NOTE OFF @ Time (s): ");
+            Serial.print(millis()/1000.0);
+            Serial.println();
+            break;
     }
 }
 
-/**
- * @brief Send master a message containing the current status and velocity of this key
- * 
- * The status byte, indicating whether this key has a new midi message is stored at
- * index 0 in the buffer.
- * 
- * The current status will be stored at index 0 in the buffer.
- * The current velocity will be stored at index 1 in the buffer.
- * 
- * @param slave The slave that this key belongs to. The slave will communicate with master over SPI
- * @param bufferSize The buffer size used to craft message for communicating with master
- * @param queueSize The queue size windowing the communication of the slave wit h master
- */
-void Key::SendMessageToMaster(ESP32SPISlave *const slave, const size_t bufferSize, const size_t queueSize)
+uint8_t *Key::GetCurrentMessageForMaster()
 {
-    uint8_t message[bufferSize] {(uint8_t) mReadyForMidi, mStatus, mVelocity};
-    slave->queue(message, NULL, bufferSize);
-    slave->wait();
+    message[0] = mReadinessByte;
+    message[1] = mStatus;
+    message[2] = mVelocity;
+    message[3] = 0x00; // Don't care, but fill the last block of the buffer
 
-    //
-    // if there is currently no transaction in flight b/n slave and master
-    // and all results have been handled, queue new transactions
-    //
-    if (slave->hasTransactionsCompletedAndAllResultsHandled())
-    {
-        slave->queue(message, NULL, bufferSize);
-        slave->trigger();
-    }
-    //
-    // if all transactions are complete and all results (from master) are
-    // ready, handle results
-    //
-    if (slave->hasTransactionsCompletedAndAllResultsReady(queueSize))
-    {
-        const std::vector<size_t> receivedBytes = slave->numBytesReceivedAll();
-    } 
+    return message;
 }
+

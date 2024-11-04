@@ -156,22 +156,24 @@ void querySlave(SPIClass *spi, const int ss)
   // ESP is little endian. Read buffer from LSB
   for (int i = 0; i < SLAVE1_KEY_COUNT; i++)
   {
+    uint8_t response[SLAVE1_BUFFER_SIZE] {0};
+
     spi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE0));
     digitalWrite(ss, LOW);
-    spi->transferBytes(NULL, slave1Response, SLAVE1_BUFFER_SIZE);
+    spi->transferBytes(NULL, response, SLAVE1_BUFFER_SIZE);
     digitalWrite(ss, HIGH);
     spi->endTransaction();
 
-    uint8_t readiness = slave1Response[0];
+    bool newMessage = (bool)response[0];
 
-    if (readiness = 0x01)
+    if (newMessage)
     {
       uint8_t note = slave1Notes[i];
-      uint8_t status = slave1Response[1];
-      uint8_t velocity = slave1Response[2];
+      uint8_t status = response[1];
+      uint8_t velocity = response[2];
 
-      uint8_t message[5] = {HEADER, TIMESTAMP, note, status, velocity};
-      delay(10); // wait 10ms to buffer BLE transmission
+      uint8_t message[5] = {HEADER, TIMESTAMP, status, note, velocity};
+      // delay(10); // wait 10ms to buffer BLE transmission
       pCharacteristic->setValue(message, sizeof(message));
       pCharacteristic->notify();
     }

@@ -11,9 +11,7 @@
  * can be attached to this implementation to expand features.
  */
 #include <Arduino.h>
-#include <ESP32SPISlave.h>
-
-#include "KeyController.h"
+#include <KeyController.h>
 
 // Key ADC Pins on 
 #define KEY_1  36
@@ -65,8 +63,6 @@ void setup()
   //
   octave = new KeyController(KEY_COUNT, pins, START_NOTE, THRESHOLD, RESOLUTION);
   
-  delay(2000);
-
   // initiate spi instance
   pinMode(SPI_MISO, OUTPUT);
   octave->initializeSpi(SPI_BUS, SPI_MODE, BUFFER_SIZE, QUEUE_SIZE);
