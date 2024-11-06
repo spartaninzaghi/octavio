@@ -7,9 +7,6 @@
 
 #include "Key.h"
 
-uint8_t message[4] {0, 0, 0, 0};
-unsigned long playTime = 20;
-unsigned long timestamp = 0;
 
 /**
  * Constructor
@@ -147,12 +144,10 @@ void Key::Update()
 
     if (velocity > mThreshold && !mNoteOnSent)
     {
-        timestamp = millis();
         mVelocity = velocity;
         mStatus = NOTE_ON;
         mReadyForMIDI = true;
 
-        Serial.println("Current state: ReadyForNoteOn");
         // -------------------- Debug lines ---------------------
         Serial.print("NOTE ON >> Updating key: ");
         Serial.print(mPin);
@@ -184,7 +179,7 @@ void Key::Update()
         Serial.print(velocity);
         Serial.print(" | Threshold: ");
         Serial.print(mThreshold);
-        Serial.print("Sending NOTE OFF @ Time (s): ");
+        Serial.print(" | Sending NOTE OFF at time (s): ");
         Serial.print(millis()/1000.0);
         Serial.println();
     }
