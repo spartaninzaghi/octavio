@@ -140,8 +140,6 @@ void Key::Update()
     // If the current velocity exceeds the thresholds but has
     // not been sent, transition to th ReadyForNoteOn state
     //
-    unsigned long elapsed = millis() - timestamp;
-
     if (velocity > mThreshold && !mNoteOnSent)
     {
         mVelocity = velocity;
