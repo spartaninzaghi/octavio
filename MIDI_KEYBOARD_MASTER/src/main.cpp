@@ -17,15 +17,11 @@ static const int spiClk = 5000000; // 5 MHz -- max: 10 MHz but choose value < 7.
 SPIClass *hspi = NULL;
 
 static constexpr size_t SLAVE1_BUFFER_SIZE = 8;
-static const uint8_t slave1Notes[SLAVE1_KEY_COUNT]{0x3C, 0x3D}; // for testing
+static const uint8_t slave1Notes[SLAVE1_KEY_COUNT] {0x3C, 0x3D}; // for testing
 
 const Slave slave1 = {1, 2, 4};
 
-uint8_t rx_buff1[SLAVE1_BUFFER_SIZE]{0};
-
-// uint8_t receivedReadiness[SLAVE1_KEY_COUNT] {0};
-// uint8_t receivedVelocities[SLAVE1_KEY_COUNT] {0};
-// uint8_t receivedStatuses[SLAVE1_KEY_COUNT] {0};
+uint8_t slave1RxBuffer[SLAVE1_BUFFER_SIZE] {0};
 
 // Create BLE Server and Characteristic
 BLEServer *pServer = NULL;
@@ -35,7 +31,7 @@ bool deviceConnected = false;
 bool previousDeviceConnected = false;
 
 // ------------------------- Function Declarations ---------------------------
-void querySlave(SPIClass *spi, const int ss);
+void querySlave(SPIClass *spi, const int ss, uint8_t *receiveBuffer, const size_t bufferSize);
 void sendMidiMsgUpdatesOverBLE();
 
 class MyServerCallbacks : public BLEServerCallbacks
@@ -108,6 +104,7 @@ void setup()
   pAdvertising->setMinPreferred(0x06); // Minimum connection time:
   pAdvertising->setMaxPreferred(0x12); //
   pAdvertising->start();
+
   Serial.println("Waiting for a client connection...");
 }
 
@@ -120,7 +117,7 @@ void loop()
   // Connected: Notify client of changed value
   if (deviceConnected)
   {
-    querySlave(hspi, HSPI_SS);
+    querySlave(hspi, HSPI_SS, slave1RxBuffer, SLAVE1_BUFFER_SIZE);
     sendMidiMsgUpdatesOverBLE();
     previousDeviceConnected = true; // Update the previous connection state
   }
@@ -145,15 +142,16 @@ void loop()
 /**
  * @brief Query a slave ESP32 for it note velocity readings
  *
- * This function initiates SPI communication with a slave device
- * to buffer in its current analog readings of its note velocities.
- * It only reads in the incoming slave message over MISO, without
- * responding
+ * This function initiates SPI communication with a slave device to buffer 
+ * in its current analog readings of its note velocities and statuses. It
+ * only reads in the incoming slave message over MISO, without responding
  *
  * @param spi The SPIClass object to query slave on. VSPI/HSPI
  * @param ss The digital slave select pin to use for query
+ * @param receiveBuffer The buffer to receive the response of the query into
+ * @param bufferSize The size of the buffer to receive the query response into
  */
-void querySlave(SPIClass *spi, const int ss)
+void querySlave(SPIClass *spi, const int ss, uint8_t *receiveBuffer, const size_t bufferSize)
 {
   //
   // Master receives data from slave with the following partition
@@ -163,7 +161,7 @@ void querySlave(SPIClass *spi, const int ss)
   //
   spi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE0));
   digitalWrite(ss, LOW);
-  spi->transferBytes(NULL, rx_buff1, SLAVE1_BUFFER_SIZE);
+  spi->transferBytes(NULL, receiveBuffer, bufferSize);
   digitalWrite(ss, HIGH);
   spi->endTransaction();
 }
@@ -180,14 +178,14 @@ void sendMidiMsgUpdatesOverBLE()
   // ESP is little endian. Read buffer from LSB
   for (int i = 0; i < SLAVE1_KEY_COUNT; i++)
   {
-    uint8_t readiness = rx_buff1[i + 0 * SLAVE1_KEY_COUNT];
+    uint8_t readiness = slave1RxBuffer[i + 0 * SLAVE1_KEY_COUNT];
 
     if (readiness == 0x01)
     {
       uint8_t note = slave1Notes[i];
 
-      uint8_t velocity  = rx_buff1[i + 1 * SLAVE1_KEY_COUNT];
-      uint8_t status    = rx_buff1[i + 2 * SLAVE1_KEY_COUNT];
+      uint8_t velocity  = slave1RxBuffer[i + 1 * SLAVE1_KEY_COUNT];
+      uint8_t status    = slave1RxBuffer[i + 2 * SLAVE1_KEY_COUNT];
 
       uint8_t message[5] = {HEADER, TIMESTAMP, status, note, velocity};
 
