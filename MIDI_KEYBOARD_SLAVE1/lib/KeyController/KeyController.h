@@ -31,6 +31,10 @@ private:
     ///< The queue size that this controllers uses for SPI communication with its master
     size_t mQueueSize = 0;
 
+    ///< The transfer buffer this controller uses to send polled data to master over SPI
+    uint8_t* mTransferBuffer;
+
+
 public:
 
     KeyController(const size_t keyCount, const int* pins, uint8_t startNote, const int resoluiton, const int threshold);
