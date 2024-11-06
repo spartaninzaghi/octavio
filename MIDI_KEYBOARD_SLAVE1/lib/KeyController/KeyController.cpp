@@ -8,11 +8,6 @@
 
 ESP32SPISlave* slave;
 
-static constexpr size_t BUFFER_SIZE = 8; // Size of buffer to hold tx rx data
-static constexpr size_t QUEUE_SIZE = 1;  // Num of transaction b/n slave & master
-
-uint8_t tx_buff[BUFFER_SIZE] {0};
-
 
 /**
  * @brief Constructor
@@ -44,9 +39,6 @@ KeyController::KeyController(const size_t keyCount, const int *pins, uint8_t sta
         //
         // Create a pointer to this key and store it in the array for all keys
         //
-        Serial.print("Current pin: ");
-        Serial.print(pins[i]);
-        Serial.println();
         mKeys[i] = new Key(pins[i], note, maxAdcValue, threshold);
     }
 }
@@ -68,7 +60,7 @@ KeyController::~KeyController()
  */
 void KeyController::initializeSpi(const uint8_t spiBus, const uint8_t spiMode, const size_t bufferSize, const size_t queueSize)
 {
-    delay(2000); // give SPI about 2 seconds to set up robustly
+    delay(2000); // give SPI ~2 seconds to stabilize
 
     slave = new ESP32SPISlave;
     slave->setDataMode(SPI_MODE0);
@@ -77,6 +69,15 @@ void KeyController::initializeSpi(const uint8_t spiBus, const uint8_t spiMode, c
     mBufferSize = bufferSize;
     mQueueSize = queueSize;
 
+    //
+    // Initialize the transfer buffer for this controller
+    //
+    mTransferBuffer = new uint8_t [bufferSize];
+    memset(mTransferBuffer, 0, bufferSize);
+
+    //
+    // Begin SPI based on given SPI bus 
+    //
     if (spiBus == HSPI)
     {
         slave->begin(HSPI, HSPI_SCLK, HSPI_MISO, HSPI_MOSI, HSPI_SS);
@@ -85,6 +86,7 @@ void KeyController::initializeSpi(const uint8_t spiBus, const uint8_t spiMode, c
     {
         slave->begin(VSPI, VSPI_SCLK, VSPI_MISO, VSPI_MOSI, VSPI_SS);
     }
+ 
     Serial.println("Done setting up SPI");
 }
 
@@ -100,14 +102,14 @@ void KeyController::run()
         key->Update();
 
         //
-        // The transfer buffer, tx_buff is filled in this partition:
+        // The transfer buffer, mTransferBuffer is filled in this partition:
         // -- payload 1 -> updates
         // -- payload 2 -> velocities
         // -- payload 3 -> statuses
         //
-        tx_buff[i + 0 * mKeyCount] = key->IsReadyForMIDI();
-        tx_buff[i + 1 * mKeyCount] = key->GetVelocity();
-        tx_buff[i + 2 * mKeyCount] = key->GetStatus();
+        mTransferBuffer[i + 0 * mKeyCount] = key->IsReadyForMIDI();
+        mTransferBuffer[i + 1 * mKeyCount] = key->GetVelocity();
+        mTransferBuffer[i + 2 * mKeyCount] = key->GetStatus();
 
         //
         // If this key had a new MIDI message, let it know
@@ -129,6 +131,9 @@ void KeyController::run()
     //
     // Send the packet containing the data on the keys of this controller to the master
     //
-    slave->queue(tx_buff, NULL, mBufferSize);
+    // Using wait() instead of trigger() incorporates blocking, ensuring that 
+    // 
+    //
+    slave->queue(mTransferBuffer, NULL, mBufferSize);
     slave->wait();
 }
