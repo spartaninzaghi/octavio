@@ -40,7 +40,7 @@
 #define SPI_BUS  HSPI
 #define SPI_MODE SPI_MODE0
 
-static constexpr size_t BUFFER_SIZE = 4; // Size of buffer to hold tx rx data
+static constexpr size_t BUFFER_SIZE = 8; // Size of buffer to hold tx rx data | should be at least key count
 static constexpr size_t QUEUE_SIZE = 1;  // Num of transaction b/n slave & master
 
 KeyController* octave = nullptr;
@@ -61,7 +61,7 @@ void setup()
   //
   // Create new key controller
   //
-  octave = new KeyController(KEY_COUNT, pins, START_NOTE, THRESHOLD, RESOLUTION);
+  octave = new KeyController(KEY_COUNT, pins, START_NOTE, RESOLUTION, THRESHOLD);
   
   // initiate spi instance
   pinMode(SPI_MISO, OUTPUT);

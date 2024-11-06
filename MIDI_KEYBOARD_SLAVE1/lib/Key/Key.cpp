@@ -8,6 +8,8 @@
 #include "Key.h"
 
 uint8_t message[4] {0, 0, 0, 0};
+unsigned long playTime = 20;
+unsigned long timestamp = 0;
 
 /**
  * Constructor
@@ -124,9 +126,9 @@ uint8_t Key::GetNote()
 /**
  * @brief Return whether this key is ready with new MIDI data
  */
-bool Key::IsReadyForMidi()
+bool Key::IsReadyForMIDI()
 {
-    return mReadyForMidi;
+    return mReadyForMIDI;
 }
 
 /**
@@ -137,87 +139,58 @@ void Key::Update()
     int value = analogRead(mPin);
     uint8_t velocity = map(value, 0, 4095, 0, 127); 
 
-    switch(mState)
+    //
+    // If the current velocity exceeds the thresholds but has
+    // not been sent, transition to th ReadyForNoteOn state
+    //
+    unsigned long elapsed = millis() - timestamp;
+
+    if (velocity > mThreshold && !mNoteOnSent)
     {
-        case Idle:
-            //
-            // If the current velocity exceeds the thresholds but has
-            // not been sent, transition to th ReadyForNoteOn state
-            //
-            if (velocity > mThreshold && !mNoteOnSent)
-            {
-                mState = ReadyForNoteOn;
-            }
-            
-            //
-            // If the current velocity is at or lower than the threshold
-            // transition to the ReadyForNoteOff state
-            //
-            if (velocity <= mThreshold && mNoteOnSent)
-            {
-                mState = ReadyForNoteOff;
-            }
+        timestamp = millis();
+        mVelocity = velocity;
+        mStatus = NOTE_ON;
+        mReadyForMIDI = true;
 
-            mReadinessByte = 0x00;
-            break;
-
-        case ReadyForNoteOn:
-            mStatus = NOTE_ON;
-            mVelocity = velocity;
-            mNoteOnSent = true;
-
-            mState = Idle;
-
-            Serial.println("Current state: ReadyForNoteOn");
-
-
-            // Debug lines
-            mStatus = NOTE_ON;
-            mVelocity = velocity;
-            mReadyForMidi = true;
-            mNoteOnSent = true;
-            mReadinessByte = 0x01;
-            Serial.print("Updating key: ");
-            Serial.print(mPin);
-            Serial.print(" | Current Velocity: ");
-            Serial.print(mVelocity);
-            Serial.print(" | Threshold: ");
-            Serial.print(mThreshold);
-            Serial.print(" | Time (s): ");
-            Serial.print(millis()/1000.0);
-            Serial.println();
-            break;
-
-        case ReadyForNoteOff:
-            mStatus = NOTE_OFF;
-            mVelocity = 0;
-            mNoteOnSent = false;
-            mReadinessByte = 0x01;
-
-            mState = Idle;
-
-            Serial.println("Current state: ReadyForNoteOff");
-
-            // Debug lines
-            Serial.print("NOTE OFF >> Current mVelocity: ");
-            Serial.print(mVelocity);
-            Serial.print(" | Current Velocity: ");
-            Serial.print(velocity);
-            Serial.print(" | Threshold: ");
-            Serial.print("Sending NOTE OFF @ Time (s): ");
-            Serial.print(millis()/1000.0);
-            Serial.println();
-            break;
+        Serial.println("Current state: ReadyForNoteOn");
+        // -------------------- Debug lines ---------------------
+        Serial.print("NOTE ON >> Updating key: ");
+        Serial.print(mPin);
+        Serial.print(" | Current Velocity: ");
+        Serial.print(mVelocity);
+        Serial.print(" | Threshold: ");
+        Serial.print(mThreshold);
+        Serial.print(" | Time (s): ");
+        Serial.print(millis()/1000.0);
+        Serial.println();
     }
-}
+    
+    //
+    // If the current velocity is at or lower than the threshold
+    // transition to the ReadyForNoteOff state
+    //
+    else if (velocity <= mThreshold && mVelocity > mThreshold && mNoteOnSent)
+    {
+        // mState = ReadyForNoteOff;
+        mVelocity = 0;
+        mStatus = NOTE_OFF;
+        mReadyForMIDI = true;
+        mNoteOnSent = false;
 
-uint8_t *Key::GetCurrentMessageForMaster()
-{
-    message[0] = mReadinessByte;
-    message[1] = mStatus;
-    message[2] = mVelocity;
-    message[3] = 0x00; // Don't care, but fill the last block of the buffer
-
-    return message;
+        // ---------------------- Debug lines ----------------------
+        Serial.print("NOTE OFF >> mVelocity: ");
+        Serial.print(mVelocity);
+        Serial.print(" | Current Velocity Reading: ");
+        Serial.print(velocity);
+        Serial.print(" | Threshold: ");
+        Serial.print(mThreshold);
+        Serial.print("Sending NOTE OFF @ Time (s): ");
+        Serial.print(millis()/1000.0);
+        Serial.println();
+    }
+    else
+    {
+        mReadyForMIDI = false;
+    }
 }
 

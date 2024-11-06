@@ -37,7 +37,7 @@ public:
     ~KeyController();
 
     void run();
-    void initializeSpi(const uint8_t spiBus, const int spiMode, const size_t bufferSize, const size_t queueSize);
+    void initializeSpi(const uint8_t spiBus, const uint8_t spiMode, const size_t bufferSize, const size_t queueSize);
 
     KeyController() = delete;
     KeyController(const KeyController &) = delete;

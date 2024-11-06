@@ -8,10 +8,11 @@
 
 ESP32SPISlave* slave;
 
-static constexpr size_t BUFFER_SIZE = 4; // Size of buffer to hold tx rx data
+static constexpr size_t BUFFER_SIZE = 8; // Size of buffer to hold tx rx data
 static constexpr size_t QUEUE_SIZE = 1;  // Num of transaction b/n slave & master
 
-uint8_t noteVelocities[BUFFER_SIZE];
+uint8_t tx_buff[BUFFER_SIZE] {0};
+
 
 /**
  * @brief Constructor
@@ -65,9 +66,9 @@ KeyController::~KeyController()
  * @param bufferSize The size of the buffer used in communicating with master
  * @param queueSize The size of the queue used in communicating with master
  */
-void KeyController::initializeSpi(const uint8_t spiBus, const int spiMode, const size_t bufferSize, const size_t queueSize)
+void KeyController::initializeSpi(const uint8_t spiBus, const uint8_t spiMode, const size_t bufferSize, const size_t queueSize)
 {
-    delay(2000);
+    delay(2000); // give SPI about 2 seconds to set up robustly
 
     slave = new ESP32SPISlave;
     slave->setDataMode(SPI_MODE0);
@@ -98,33 +99,36 @@ void KeyController::run()
 
         key->Update();
 
-        uint8_t* message = key->GetCurrentMessageForMaster();
+        //
+        // The transfer buffer, tx_buff is filled in this partition:
+        // -- payload 1 -> updates
+        // -- payload 2 -> velocities
+        // -- payload 3 -> statuses
+        //
+        tx_buff[i + 0 * mKeyCount] = key->IsReadyForMIDI();
+        tx_buff[i + 1 * mKeyCount] = key->GetVelocity();
+        tx_buff[i + 2 * mKeyCount] = key->GetStatus();
 
         //
-        // if there is currently no transaction in flight b/n slave and master
-        // and all results have been handled, queue new transactions
+        // If this key had a new MIDI message, let it know
+        // if its NOTE ON message is sent or not
         //
-        if (slave->hasTransactionsCompletedAndAllResultsHandled())
+        if (key->IsReadyForMIDI())
         {
-            if (message[0] == 0x01)
+            if (key->GetStatus() == NOTE_ON)
             {
-                Serial.print(" | Status: ");
-                Serial.print(message[1]);
-                Serial.print(" | Velocity: ");
-                Serial.print(message[2]);
-                Serial.println();
+                key->SetNoteOnSent(true);
             }
-            
-            slave->queue(message, NULL, mBufferSize);
-            slave->trigger();
-        }
-        //
-        // if all transactions are complete and all results (from master) are
-        // ready, handle results
-        //
-        if (slave->hasTransactionsCompletedAndAllResultsReady(mQueueSize))
-        {
-            const std::vector<size_t> receivedBytes = slave->numBytesReceivedAll();
+            if (key->GetStatus() == NOTE_OFF)
+            {
+                key->SetNoteOnSent(false);
+            }
         }
     }
+
+    //
+    // Send the packet containing the data on the keys of this controller to the master
+    //
+    slave->queue(tx_buff, NULL, mBufferSize);
+    slave->wait();
 }

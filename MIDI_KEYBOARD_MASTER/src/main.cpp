@@ -16,16 +16,16 @@ static const int spiClk = 5000000; // 5 MHz -- max: 10 MHz but choose value < 7.
 
 SPIClass *hspi = NULL;
 
-static constexpr size_t SLAVE1_BUFFER_SIZE = 4;
+static constexpr size_t SLAVE1_BUFFER_SIZE = 8;
 static const uint8_t slave1Notes[SLAVE1_KEY_COUNT]{0x3C, 0x3D}; // for testing
 
 const Slave slave1 = {1, 2, 4};
 
-uint8_t slave1Response[SLAVE1_BUFFER_SIZE]{0};
+uint8_t rx_buff1[SLAVE1_BUFFER_SIZE]{0};
 
-uint8_t receivedReadiness[SLAVE1_KEY_COUNT];
-uint8_t receivedVelocities[SLAVE1_KEY_COUNT];
-uint8_t receivedStatuses[SLAVE1_KEY_COUNT];
+// uint8_t receivedReadiness[SLAVE1_KEY_COUNT] {0};
+// uint8_t receivedVelocities[SLAVE1_KEY_COUNT] {0};
+// uint8_t receivedStatuses[SLAVE1_KEY_COUNT] {0};
 
 // Create BLE Server and Characteristic
 BLEServer *pServer = NULL;
@@ -89,10 +89,11 @@ void setup()
 
   // Create BLE Characteristic with read, write-no-response, and notify properties
   pCharacteristic = pService->createCharacteristic(
-      BLEUUID(CHARACTERISTIC_UUID),
-      BLECharacteristic::PROPERTY_READ |
-          BLECharacteristic::PROPERTY_WRITE_NR |
-          BLECharacteristic::PROPERTY_NOTIFY);
+    BLEUUID(CHARACTERISTIC_UUID),
+    BLECharacteristic::PROPERTY_READ     |
+    BLECharacteristic::PROPERTY_WRITE_NR |
+    BLECharacteristic::PROPERTY_NOTIFY
+  );
 
   // Add the descriptor for notifications
   pCharacteristic->addDescriptor(new BLE2902());
@@ -120,6 +121,7 @@ void loop()
   if (deviceConnected)
   {
     querySlave(hspi, HSPI_SS);
+    sendMidiMsgUpdatesOverBLE();
     previousDeviceConnected = true; // Update the previous connection state
   }
 
@@ -153,31 +155,17 @@ void loop()
  */
 void querySlave(SPIClass *spi, const int ss)
 {
-  // ESP is little endian. Read buffer from LSB
-  for (int i = 0; i < SLAVE1_KEY_COUNT; i++)
-  {
-    uint8_t response[SLAVE1_BUFFER_SIZE] {0};
-
-    spi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE0));
-    digitalWrite(ss, LOW);
-    spi->transferBytes(NULL, response, SLAVE1_BUFFER_SIZE);
-    digitalWrite(ss, HIGH);
-    spi->endTransaction();
-
-    bool newMessage = (bool)response[0];
-
-    if (newMessage)
-    {
-      uint8_t note = slave1Notes[i];
-      uint8_t status = response[1];
-      uint8_t velocity = response[2];
-
-      uint8_t message[5] = {HEADER, TIMESTAMP, status, note, velocity};
-      // delay(10); // wait 10ms to buffer BLE transmission
-      pCharacteristic->setValue(message, sizeof(message));
-      pCharacteristic->notify();
-    }
-  }
+  //
+  // Master receives data from slave with the following partition
+  // -----------------------------------------------------------
+  // |   1 READINESS   |    2 VELOCITIES    |    3 STATUSES    |
+  // -----------------------------------------------------------
+  //
+  spi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE0));
+  digitalWrite(ss, LOW);
+  spi->transferBytes(NULL, rx_buff1, SLAVE1_BUFFER_SIZE);
+  digitalWrite(ss, HIGH);
+  spi->endTransaction();
 }
 
 /**
@@ -192,10 +180,34 @@ void sendMidiMsgUpdatesOverBLE()
   // ESP is little endian. Read buffer from LSB
   for (int i = 0; i < SLAVE1_KEY_COUNT; i++)
   {
-    uint8_t status = (receivedVelocities[i] > MIN_VELOCITY) ? NOTE_ON : NOTE_OFF;
-    uint8_t message[5] = {HEADER, TIMESTAMP, status, slave1Notes[i], receivedVelocities[i]};
-    delay(50); // wait 50ms to buffer BLE transmission
-    pCharacteristic->setValue(message, sizeof(message));
-    pCharacteristic->notify();
+    uint8_t readiness = rx_buff1[i + 0 * SLAVE1_KEY_COUNT];
+
+    if (readiness == 0x01)
+    {
+      uint8_t note = slave1Notes[i];
+
+      uint8_t velocity  = rx_buff1[i + 1 * SLAVE1_KEY_COUNT];
+      uint8_t status    = rx_buff1[i + 2 * SLAVE1_KEY_COUNT];
+
+      uint8_t message[5] = {HEADER, TIMESTAMP, status, note, velocity};
+
+      // Debug Lines for monitoring master receipts of SPI messages
+      Serial.print("Current MIDI for note: ");
+      Serial.print(note, HEX);
+      Serial.print(" update: ");
+      Serial.print(readiness);
+      Serial.print(" | Status: ");
+      Serial.print(status, HEX);
+      Serial.print(" | Velocity: ");
+      Serial.print(velocity);
+      Serial.print(" | Current Time (s): ");
+      Serial.print(millis() / 1000);
+      Serial.println();
+
+      delay(10); // wait 50ms to buffer BLE transmission
+
+      pCharacteristic->setValue(message, sizeof(message));
+      pCharacteristic->notify();
+    }
   }
 }

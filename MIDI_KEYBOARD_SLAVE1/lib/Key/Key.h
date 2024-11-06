@@ -24,16 +24,9 @@ private:
     int mMaxAdcValue = 12;       ///< The max value read on the ADC pin of this key
     uint8_t mThreshold = 20;     ///< Cutoff to discriminate b/n presses and noise
 
-    enum State {Idle, ReadyForNoteOn, ReadyForNoteOff};
-
-    State mState = Idle;
-    
-    bool mReadyForMidi = false;  ///< This note is ready to send a midi message
+    bool mReadyForMIDI = false;  ///< This note is ready to send a MIDI message
     bool mNoteOnSent = false;    ///< Has the velocity of this key been sent
-    bool mNoteOffSent = false;   ///<
-
-    uint8_t mPreviousVelocity = 0; 
-    uint8_t mReadinessByte = 0x00;
+    bool mNoteOffSent = false;    ///< Has a NOTE OFF message been sent to quench the playing note of this key?
 
 
 public:
@@ -58,7 +51,7 @@ public:
     uint8_t* GetCurrentMessageForMaster();
     bool GetNoteOnSent();
     bool GetNoteOffSent();
-    bool IsReadyForMidi();
+    bool IsReadyForMIDI();
 
     // --------------------------------- Core Methods ------------------------------
     void Update();
