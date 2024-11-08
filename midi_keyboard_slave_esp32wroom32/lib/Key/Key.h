@@ -22,16 +22,28 @@ private:
     uint8_t mVelocity = 0;       ///< The velocity this key is being played at
     
     int mMaxAdcValue = 12;       ///< The max value read on the ADC pin of this key
-    uint8_t mThreshold = 20;     ///< Cutoff to discriminate b/n presses and noise
+    uint8_t mThresholdOn  = 65;  ///< The 1st velocity above this threshold evokes a NOTE ON message
+    uint8_t mThresholdOff = 55;  ///< The 1st velocity below this threshold evokes a NOTE OFF message 
 
     bool mReadyForMIDI = false;  ///< This note is ready to send a MIDI message
-    bool mNoteOnSent = false;    ///< Has the velocity of this key been sent
-    bool mNoteOffSent = false;    ///< Has a NOTE OFF message been sent to quench the playing note of this key?
+    bool mNoteIsOn = false;    ///< Has the velocity of this key been sent
+
+    enum State {Idle, NoteOn, NoteOff};
+    State mState = Idle;
+
+    /// At what time was the NOTE ON velocity for this key first recorded ?
+    unsigned long mNoteOnTimestamp = 0;
+
+    /// The zero point for this key, taking DC offset into account
+    int mBaseline = 59;  
+
+    /// The time taken for the piezo disc of this key to debounce
+    const unsigned long mDebounceTime = 5000;
 
 
 public:
 
-    Key(const int pin, const uint8_t note, const int maxAdcValue, const int threshold);
+    Key(const int pin, const uint8_t note, const int maxAdcValue, const int baseline, const int thresholdOn, const int thresholdOff);
     ~Key() {};
 
 
@@ -39,22 +51,21 @@ public:
     void SetPin(int pin);
     void SetStatus(uint8_t status);
     void SetVelocity(uint8_t velocity);
-    void SetNoteOnSent(bool sent);
-    void SetNoteOffSent(bool sent);
-    void SetThreshold(uint8_t threshold);
+    void SetThresholdOn(uint8_t thresholdOn);
+    void SetThresholdOff(uint8_t thresholdOff);
 
     // ----------------------------------- Getters ---------------------------------
     int GetPin();
     uint8_t GetNote();
     uint8_t GetStatus();
     uint8_t GetVelocity();
-    uint8_t* GetCurrentMessageForMaster();
-    bool GetNoteOnSent();
-    bool GetNoteOffSent();
+    uint8_t GetThresholdOn();
+    uint8_t GetThresholdOff();
     bool IsReadyForMIDI();
 
     // --------------------------------- Core Methods ------------------------------
     void Update();
+    uint8_t ScaleVelocity();
 
     Key() = default;
     Key(const Key &) = delete;

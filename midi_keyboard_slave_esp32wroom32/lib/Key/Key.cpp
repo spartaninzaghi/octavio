@@ -1,23 +1,20 @@
 /**
  * @file Key.cpp
  * @author Mate Narh
- * 
- * --Tentative Key Lib
  */
 
 #include "Key.h"
 
-
 /**
- * Constructor
+ * @brief Constructor
  * @param pin The GPIO pin bound to this key
  * @param note The note that this key sounds (0-127)
  */
-Key::Key(const int pin, const uint8_t note, const int maxAdcValue, const int threshold) : 
-    mPin(pin), mNote(note), mMaxAdcValue(maxAdcValue), mThreshold(threshold) {}
+Key::Key(const int pin, const uint8_t note, const int maxAdcValue, const int baseline, const int thresholdOn, const int thresholdOff) : 
+    mPin(pin), mNote(note), mMaxAdcValue(maxAdcValue), mBaseline(baseline), mThresholdOn(thresholdOn), mThresholdOff(thresholdOff) {}
 
 /**
- * Bind this key to specified GPIO pin
+ * @brief Bind this key to specified GPIO pin
  * @param pin The GPIO pin bound to this key
  */
 void Key::SetPin(const int pin)
@@ -43,32 +40,23 @@ void Key::SetVelocity(uint8_t velocity)
     mVelocity = velocity;
 }
 
+
 /**
- * @brief Set whether the note of this key has been sent or not
- * @param sent 
+ * @brief Set the threshold beyond which triggers a NOTE ON message for this key
+ * @param thresholdOn The NOTE ON-triggering threshold to set
  */
-void Key::SetNoteOnSent(bool sent)
+void Key::SetThresholdOn(uint8_t thresholdOn)
 {
-    mNoteOnSent = sent;
+    mThresholdOn = thresholdOn;
 }
 
 /**
- * @brief Set whether the note of this key has been sent or not
- * @param sent 
+ * @brief Set the threshold below which triggers a NOTE OFF message for this key
+ * @param thresholdOff The NOTE OFF-triggering threshold to set
  */
-void Key::SetNoteOffSent(bool sent)
+void Key::SetThresholdOff(uint8_t thresholdOff)
 {
-    mNoteOffSent = sent;
-}
-
-
-/**
- * @brief Set the threshold at which this key validates a key press
- * @param threshold The threshold to set
- */
-void Key::SetThreshold(uint8_t threshold)
-{
-    mThreshold = threshold;
+    mThresholdOff = thresholdOff;
 }
 
 /**
@@ -97,27 +85,27 @@ uint8_t Key::GetVelocity()
 
 
 /**
- * Indicate whether a NOTE ON message has been sent for this key
- */
-bool Key::GetNoteOnSent()
-{
-    return mNoteOnSent;
-}
-
-/**
- * Indicate whether a NOTE ON message has been sent for this key
- */
-bool Key::GetNoteOffSent()
-{
-    return mNoteOffSent;
-}
-
-/**
  * @brief Return the note that this key sounds 
  */
 uint8_t Key::GetNote()
 {
     return mNote;
+}
+
+/**
+ * @brief Get the NOTE ON threshold trigger for this key
+ */
+uint8_t Key::GetThresholdOn()
+{
+    return mThresholdOn;
+}
+
+/**
+ * @brief Get the NOTE OFF threshold trigger for this key
+ */
+uint8_t Key::GetThresholdOff()
+{
+    return mThresholdOff;
 }
 
 /**
@@ -134,56 +122,144 @@ bool Key::IsReadyForMIDI()
 void Key::Update()
 {
     int value = analogRead(mPin);
-    uint8_t velocity = map(value, 0, 4095, 0, 127); 
-
-    //
-    // If the current velocity exceeds the thresholds but has
-    // not been sent, transition to th ReadyForNoteOn state
-    //
-    if (velocity > mThreshold && !mNoteOnSent)
-    {
-        mVelocity = velocity;
-        mStatus = NOTE_ON;
-        mReadyForMIDI = true;
-
-        // -------------------- Debug lines ---------------------
-        Serial.print("NOTE ON >> Updating key: ");
-        Serial.print(mPin);
-        Serial.print(" | Current Velocity: ");
-        Serial.print(mVelocity);
-        Serial.print(" | Threshold: ");
-        Serial.print(mThreshold);
-        Serial.print(" | Time (s): ");
-        Serial.print(millis()/1000.0);
-        Serial.println();
-    }
+    value = map(value, 0, 4095, 0, 127);
     
-    //
-    // If the current velocity is at or lower than the threshold
-    // transition to the ReadyForNoteOff state
-    //
-    else if (velocity <= mThreshold && mVelocity > mThreshold && mNoteOnSent)
-    {
-        // mState = ReadyForNoteOff;
-        mVelocity = 0;
-        mStatus = NOTE_OFF;
-        mReadyForMIDI = true;
-        mNoteOnSent = false;
+    uint8_t velocity = constrain(value, 0, 127);
 
-        // ---------------------- Debug lines ----------------------
-        Serial.print("NOTE OFF >> mVelocity: ");
-        Serial.print(mVelocity);
-        Serial.print(" | Current Velocity Reading: ");
-        Serial.print(velocity);
-        Serial.print(" | Threshold: ");
-        Serial.print(mThreshold);
-        Serial.print(" | Sending NOTE OFF at time (s): ");
-        Serial.print(millis()/1000.0);
-        Serial.println();
-    }
-    else
+    Serial.println(velocity);
+
+    switch(mState)
     {
-        mReadyForMIDI = false;
+        case Idle:
+            // Serial.println(">> Curreent State: Idle");
+            //
+            // While idle, if the registered velocity overshoots the threshold required 
+            // to turn on the note of this key, but its note is currently off, update 
+            // variables, inputs, and outputs. Then, transition to the NoteOn state
+            //
+            if (velocity > mThresholdOn && !mNoteIsOn && !mReadyForMIDI)
+            {
+                // Serial.print(">> NOTE ON for key: "); Serial.print(mPin);
+                // Serial.print(" | Velocity: "); Serial.print(velocity);
+                // Serial.println();
+
+                mVelocity = velocity;
+                mStatus = NOTE_ON;
+                mNoteIsOn = true;
+                mReadyForMIDI = true;
+
+                mNoteOnTimestamp = millis();
+
+                mState = NoteOn;
+            }
+            //
+            // Otherwise, remain in this Idle state
+            //
+            else
+            {
+                mReadyForMIDI = false;
+            }
+            break;
+
+        case NoteOn:
+            // Serial.println(">> Curreent State: NoteOn");
+            //
+            // While the note of this key is on, if the newly registered velocity goes 
+            // below the minimum threshold demarcating a NOTE OFF, but the note is 
+            // currently on, update variables, inputs, and outputs. Then, transition to
+            // the NoteOn state
+            //
+            if (velocity < mThresholdOff && mNoteIsOn && !mReadyForMIDI)
+            {
+                // Serial.print(">> NOTE OFF for key: "); Serial.print(mPin);
+                // Serial.print(" | Velocity: "); Serial.print(velocity);
+                // Serial.println();
+
+                mVelocity = 0;
+                mStatus = NOTE_OFF;
+                mNoteIsOn = false;
+                mReadyForMIDI = true;
+
+                mState = NoteOff;
+            }
+            else
+            {
+                unsigned long elapsed = millis() - mNoteOnTimestamp;
+                bool noteIsInDeadZone = mBaseline - velocity > 3;
+
+                //
+                // Otherwise, if a note is currently on, but it is within a deadzone and
+                // the maximum debounce time elapses, quench the note and transition it to 
+                // the NOTE OFF state. This is because, "Every NOTE ON message requires its 
+                // corresponding NOTE OFF message, otherwise the note will play forever"
+                // see: https://www.cs.cmu.edu/~music/cmsip/readings/MIDI%20tutorial%20for%20programmers.html
+                //
+                if (mNoteIsOn && noteIsInDeadZone && elapsed > mDebounceTime && !mReadyForMIDI)
+                {
+                    // Serial.println("----------------------- Debounce is helping quench floating note --------------------------");
+                    // Serial.print(">> NOTE OFF for key: "); Serial.print(mPin);
+                    // Serial.print(" | Velocity: "); Serial.print(velocity);
+                    // Serial.println();
+                    // Serial.println("--------------------- Debounce is DONE helping quench floating note -----------------------");
+                   
+                    mVelocity = 0;
+                    mStatus = NOTE_OFF;
+                    mNoteIsOn = false;
+                    mReadyForMIDI = true;
+
+                    mState = NoteOff;
+                }
+                //
+                // Else, finally, remain in this NOTE ON state. Why? The user might stil
+                // be holding down a key
+                //
+                else
+                {
+                    mReadyForMIDI = false;
+                }
+            }
+            break;
+        
+        case NoteOff:
+            // Serial.println(">> Curreent State: NoteOff");
+            //
+            // From the NoteOff state transition directly to the Idle state
+            //
+            mReadyForMIDI = false;
+            mState = Idle;
+            break;
+
+        default:
+            // Serial.println(">> Curreent State: Default ???? Something is wrong here");
+            //
+            // To avoid fall-through behaviour, transition to the Idle state by default
+            // as it is the initial state of the FSM
+            //
+            mReadyForMIDI = false;
+            mState = Idle;
+            break;
     }
 }
 
+/**
+ * @brief Return the velocity of this key scaled to 0 - 127, taking DC offset into consideration
+ */
+uint8_t Key::ScaleVelocity()
+{
+
+    /* TODO: Fix scaling formula to be reflective and consistent */
+    if (mStatus == NOTE_OFF)
+    {
+        return 0;
+    }
+    else
+    {
+        uint8_t changeInVelocity = mVelocity - mBaseline;
+        uint8_t maxPossibleChangeInVelocity = 127 - mBaseline;
+
+        uint8_t scaledVelocity =  constrain(changeInVelocity/maxPossibleChangeInVelocity, 0, 127);
+
+        return scaledVelocity; 
+    }
+
+}
