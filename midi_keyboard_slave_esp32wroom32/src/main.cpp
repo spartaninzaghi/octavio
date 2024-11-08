@@ -34,7 +34,6 @@
 #define START_NOTE  0x3C // Middle C: C3 | (int) 60 
 
 #define RESOLUTION  12
-#define THRESHOLD   15
 
 #define SPI_MISO HSPI_MISO
 #define SPI_BUS  HSPI
@@ -51,17 +50,17 @@ const int pins[KEY_COUNT] {KEY_3, KEY_4};
 
 void setup()
 {
-  Serial.begin(115200);
-
-  // Sample analog pins at 12-bit resolution: 0-4095
+    // Sample analog pins at 12-bit resolution: 0-4095
   analogReadResolution(RESOLUTION);
+  
+  Serial.begin(115200);
 
   pinMode(LED, OUTPUT);
 
   //
   // Create new key controller
   //
-  octave = new KeyController(KEY_COUNT, pins, START_NOTE, RESOLUTION, THRESHOLD);
+  octave = new KeyController(KEY_COUNT, pins, START_NOTE, RESOLUTION);
   
   // initiate spi instance
   pinMode(SPI_MISO, OUTPUT);

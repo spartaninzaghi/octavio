@@ -13,8 +13,6 @@
 
 #include <Utility.h>
 #include <Key.h>
-// #include <ESP32SPISlave.h>
-
 
 class KeyController
 {
@@ -37,7 +35,7 @@ private:
 
 public:
 
-    KeyController(const size_t keyCount, const int* pins, uint8_t startNote, const int resoluiton, const int threshold);
+    KeyController(const size_t keyCount, const int* pins, uint8_t startNote, const int resoluiton);
     ~KeyController();
 
     void run();

@@ -6,6 +6,10 @@
 #include "KeyController.h"
 #include <ESP32SPIslave.h>
 
+#define BASELINE      59
+#define THRESHOLD_ON  65
+#define THRESHOLD_OFF 55
+
 ESP32SPISlave* slave;
 
 
@@ -15,9 +19,8 @@ ESP32SPISlave* slave;
  * @param pins Array of GPIO pins for the keys of this controller
  * @param startNote The start note of this controllers key range. eg. Middle C
  * @param resolution The resolution for analog reading the ACP pins of the keys for this controller
- * @param threshold The threshold of values to discount as noise during analog reads
  */
-KeyController::KeyController(const size_t keyCount, const int *pins, uint8_t startNote, const int resolution, const int threshold)
+KeyController::KeyController(const size_t keyCount, const int *pins, uint8_t startNote, const int resolution)
 {
     //
     // Initialize array of pointers to Keys
@@ -39,7 +42,7 @@ KeyController::KeyController(const size_t keyCount, const int *pins, uint8_t sta
         //
         // Create a pointer to this key and store it in the array for all keys
         //
-        mKeys[i] = new Key(pins[i], note, maxAdcValue, threshold);
+        mKeys[i] = new Key(pins[i], note, maxAdcValue, BASELINE, THRESHOLD_ON, THRESHOLD_OFF);
     }
 }
 
@@ -110,29 +113,14 @@ void KeyController::run()
         mTransferBuffer[i + 0 * mKeyCount] = key->IsReadyForMIDI();
         mTransferBuffer[i + 1 * mKeyCount] = key->GetVelocity();
         mTransferBuffer[i + 2 * mKeyCount] = key->GetStatus();
-
-        //
-        // If this key had a new MIDI message, let it know
-        // if its NOTE ON message is sent or not
-        //
-        if (key->IsReadyForMIDI())
-        {
-            if (key->GetStatus() == NOTE_ON)
-            {
-                key->SetNoteOnSent(true);
-            }
-            if (key->GetStatus() == NOTE_OFF)
-            {
-                key->SetNoteOnSent(false);
-            }
-        }
     }
 
     //
     // Send the packet containing the data on the keys of this controller to the master
     //
-    // Using wait() instead of trigger() incorporates blocking, ensuring that 
-    // 
+    // Using wait() instead of trigger() incorporates blocking, ensuring that the entire
+    // update message sent by this KeyController is received by the master before other
+    // program execution resumes.
     //
     slave->queue(mTransferBuffer, NULL, mBufferSize);
     slave->wait();
