@@ -6,9 +6,9 @@
 #include "KeyController.h"
 #include <ESP32SPIslave.h>
 
-#define BASELINE      59
-#define THRESHOLD_ON  65
-#define THRESHOLD_OFF 55
+#define BASELINE      58
+#define THRESHOLD_ON  63
+#define THRESHOLD_OFF 52
 
 ESP32SPISlave* slave;
 
@@ -63,7 +63,7 @@ KeyController::~KeyController()
  */
 void KeyController::initializeSpi(const uint8_t spiBus, const uint8_t spiMode, const size_t bufferSize, const size_t queueSize)
 {
-    delay(2000); // give SPI ~2 seconds to stabilize
+    delay(4000); // give SPI ~4 seconds to stabilize
 
     slave = new ESP32SPISlave;
     slave->setDataMode(SPI_MODE0);
@@ -114,6 +114,7 @@ void KeyController::run()
         mTransferBuffer[i + 1 * mKeyCount] = key->GetVelocity();
         mTransferBuffer[i + 2 * mKeyCount] = key->GetStatus();
     }
+    delay(100);
 
     //
     // Send the packet containing the data on the keys of this controller to the master
@@ -123,5 +124,5 @@ void KeyController::run()
     // program execution resumes.
     //
     slave->queue(mTransferBuffer, NULL, mBufferSize);
-    slave->wait();
+    slave->trigger();
 }

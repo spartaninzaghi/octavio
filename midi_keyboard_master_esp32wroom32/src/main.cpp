@@ -62,7 +62,7 @@ void setup()
   // Initialize SPI and wait 2 seconds (2000 ms) to guarantee robust setup
   hspi = new SPIClass(HSPI);
 
-  delay(2000);
+  delay(4000);
 
   pinMode(HSPI_SS, OUTPUT);
   pinMode(HSPI_MOSI, OUTPUT);
@@ -202,7 +202,7 @@ void sendMidiMsgUpdatesOverBLE()
       Serial.print(millis() / 1000);
       Serial.println();
 
-      delay(10); // wait 50ms to buffer BLE transmission
+      delay(5); // wait 10ms to buffer BLE transmission
 
       pCharacteristic->setValue(message, sizeof(message));
       pCharacteristic->notify();

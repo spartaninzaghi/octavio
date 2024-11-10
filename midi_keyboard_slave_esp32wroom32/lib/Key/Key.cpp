@@ -255,9 +255,9 @@ uint8_t Key::ScaleVelocity()
     else
     {
         uint8_t changeInVelocity = mVelocity - mBaseline;
-        uint8_t maxPossibleChangeInVelocity = 127 - mBaseline;
+        uint8_t maxPossibleChangeInVelocity = 100 - mBaseline;
 
-        uint8_t scaledVelocity =  constrain(changeInVelocity/maxPossibleChangeInVelocity, 0, 127);
+        uint8_t scaledVelocity =  constrain(static_cast<uint8_t>(changeInVelocity/maxPossibleChangeInVelocity), 0, 127);
 
         return scaledVelocity; 
     }
