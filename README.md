@@ -11,6 +11,9 @@ The current version includes prototype with ESP32-WROOM-32. The schematic and im
 
 # 3-Resistor Voltage Divider DC Offset Circuit
 ![image](https://github.com/user-attachments/assets/008523da-6e5c-458b-8677-bd4b666d11bf)
+
+![piezo_3Resistor_voltage_divider_DC_offset_circuit_trace_all_plots](https://github.com/user-attachments/assets/c8a88271-0e7a-4746-850a-9857c29c6a70)
+
 ![image](https://github.com/user-attachments/assets/554ee7dc-420a-4545-b603-cf756b1ef964)
 
 # Piezo disk Voltage Scope Reading
