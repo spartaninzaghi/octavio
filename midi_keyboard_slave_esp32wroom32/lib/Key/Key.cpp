@@ -5,6 +5,7 @@
 
 #include "Key.h"
 
+
 /**
  * @brief Constructor
  * @param pin The GPIO pin bound to this key
@@ -122,11 +123,12 @@ bool Key::IsReadyForMIDI()
 void Key::Update()
 {
     int value = analogRead(mPin);
+    Serial.println(value);
     value = map(value, 0, 4095, 0, 127);
     
     uint8_t velocity = constrain(value, 0, 127);
 
-    Serial.println(velocity);
+    // Serial.println(velocity);
 
     switch(mState)
     {
@@ -262,4 +264,38 @@ uint8_t Key::ScaleVelocity()
         return scaledVelocity; 
     }
 
+}
+
+/**
+ * @brief Read and smooth the ADC value of this key's pin using EMA
+ * 
+ * This function analog reads the value of the given ADC pin and  digitally smoothens
+ * out high frequency using an Exponential Moving Average low-pass filter. This allows
+ * the desired frequencies (lower than the cutoff frequency) to pass through unattenuated,
+ * and higher frequencies to be cut off
+ * @param The pin to analog read and digitally filter
+ * @return The smoothed analog value
+ */
+int Key::analogReadSmoothedWithEMA(const int pin)
+{
+    /**
+     * General formula:
+     * y = (1 − α)x + αy
+     * 
+     * where
+     *  y = output
+     *  x = input
+     *  α = smoothing factor (between 0 - 1 | lower values correspond to smoother attenuation)
+     *
+     * Credits:
+     * https://electronics.stackexchange.com/questions/176721/how-to-smooth-analog-data
+     * https://www.luisllamas.es/en/arduino-exponential-low-pass/
+     */ 
+
+    int rawAnalogValue = analogRead(mPin);
+    rawAnalogValue = map(rawAnalogValue, 0, 4095, 0, 127);
+
+    mSmoothedAnalogValue = mSmoothingFactor * rawAnalogValue + (1 - mSmoothingFactor) * mSmoothedAnalogValue;
+    
+    return static_cast<int>(mSmoothedAnalogValue);
 }

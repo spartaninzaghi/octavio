@@ -6,9 +6,9 @@
 #include "KeyController.h"
 #include <ESP32SPIslave.h>
 
-#define BASELINE      58
+#define BASELINE      57
 #define THRESHOLD_ON  63
-#define THRESHOLD_OFF 52
+#define THRESHOLD_OFF 53
 
 ESP32SPISlave* slave;
 
@@ -114,7 +114,7 @@ void KeyController::run()
         mTransferBuffer[i + 1 * mKeyCount] = key->GetVelocity();
         mTransferBuffer[i + 2 * mKeyCount] = key->GetStatus();
     }
-    delay(100);
+    delay(50);
 
     //
     // Send the packet containing the data on the keys of this controller to the master

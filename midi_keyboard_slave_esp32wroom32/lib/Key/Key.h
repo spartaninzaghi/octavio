@@ -40,6 +40,12 @@ private:
     /// The time taken for the piezo disc of this key to debounce
     const unsigned long mDebounceTime = 5000;
 
+    /// Smoothing factor to digitally filter analog data using Exponential Moving Average (EMA) LPF
+    const float mSmoothingFactor = 0.3;
+
+    /// The smoothed ADC value
+    float mSmoothedAnalogValue = 0.0;
+
 
 public:
 
@@ -66,6 +72,7 @@ public:
     // --------------------------------- Core Methods ------------------------------
     void Update();
     uint8_t ScaleVelocity();
+    int analogReadSmoothedWithEMA(const int pin);
 
     Key() = default;
     Key(const Key &) = delete;
