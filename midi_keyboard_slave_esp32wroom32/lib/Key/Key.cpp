@@ -122,13 +122,12 @@ bool Key::IsReadyForMIDI()
  */
 void Key::Update()
 {
-    int value = analogRead(mPin);
-    Serial.println(value);
+    int value = analogReadSmoothedWithEMA(mPin);
     value = map(value, 0, 4095, 0, 127);
     
     uint8_t velocity = constrain(value, 0, 127);
 
-    // Serial.println(velocity);
+    Serial.println(velocity);
 
     switch(mState)
     {
@@ -171,7 +170,7 @@ void Key::Update()
             // currently on, update variables, inputs, and outputs. Then, transition to
             // the NoteOn state
             //
-            if (velocity < mThresholdOff && mNoteIsOn && !mReadyForMIDI)
+            if (velocity < mThresholdOff && mNoteIsOn)
             {
                 // Serial.print(">> NOTE OFF for key: "); Serial.print(mPin);
                 // Serial.print(" | Velocity: "); Serial.print(velocity);
@@ -187,7 +186,8 @@ void Key::Update()
             else
             {
                 unsigned long elapsed = millis() - mNoteOnTimestamp;
-                bool noteIsInDeadZone = mBaseline - velocity > 3;
+                // bool noteIsInDeadZone = mBaseline - velocity > 2;
+                bool newPeakDetected = velocity > mThresholdOn;
 
                 //
                 // Otherwise, if a note is currently on, but it is within a deadzone and
@@ -196,7 +196,7 @@ void Key::Update()
                 // corresponding NOTE OFF message, otherwise the note will play forever"
                 // see: https://www.cs.cmu.edu/~music/cmsip/readings/MIDI%20tutorial%20for%20programmers.html
                 //
-                if (mNoteIsOn && noteIsInDeadZone && elapsed > mDebounceTime && !mReadyForMIDI)
+                if (elapsed > mDebounceTime && mNoteIsOn && newPeakDetected)
                 {
                     // Serial.println("----------------------- Debounce is helping quench floating note --------------------------");
                     // Serial.print(">> NOTE OFF for key: "); Serial.print(mPin);
@@ -246,24 +246,19 @@ void Key::Update()
 /**
  * @brief Return the velocity of this key scaled to 0 - 127, taking DC offset into consideration
  */
-uint8_t Key::ScaleVelocity()
+uint8_t Key::ScaleVelocity(const int velocity)
 {
-
-    /* TODO: Fix scaling formula to be reflective and consistent */
-    if (mStatus == NOTE_OFF)
+    if (!velocity)
     {
         return 0;
     }
-    else
-    {
-        uint8_t changeInVelocity = mVelocity - mBaseline;
-        uint8_t maxPossibleChangeInVelocity = 100 - mBaseline;
 
-        uint8_t scaledVelocity =  constrain(static_cast<uint8_t>(changeInVelocity/maxPossibleChangeInVelocity), 0, 127);
+    uint8_t changeInVelocity = velocity - mBaseline;
+    uint8_t maxPossibleChangeInVelocity = 100 - mBaseline;
 
-        return scaledVelocity; 
-    }
+    uint8_t scaledVelocity = static_cast<uint8_t>( (changeInVelocity/maxPossibleChangeInVelocity) * 127 );
 
+    return scaledVelocity; 
 }
 
 /**
@@ -273,27 +268,26 @@ uint8_t Key::ScaleVelocity()
  * out high frequency using an Exponential Moving Average low-pass filter. This allows
  * the desired frequencies (lower than the cutoff frequency) to pass through unattenuated,
  * and higher frequencies to be cut off
- * @param The pin to analog read and digitally filter
+ * @param pin The pin to analog read and digitally filter
  * @return The smoothed analog value
  */
 int Key::analogReadSmoothedWithEMA(const int pin)
 {
-    /**
-     * General formula:
-     * y = (1 − α)x + αy
-     * 
-     * where
-     *  y = output
-     *  x = input
-     *  α = smoothing factor (between 0 - 1 | lower values correspond to smoother attenuation)
-     *
-     * Credits:
-     * https://electronics.stackexchange.com/questions/176721/how-to-smooth-analog-data
-     * https://www.luisllamas.es/en/arduino-exponential-low-pass/
-     */ 
+    //
+    // General formula:
+    // y = (1 − α)x + αy
+    // 
+    // where
+    //     y = output
+    //     x = input
+    //     α = smoothing factor (between 0 - 1 | lower values correspond to smoother attenuation)
+    //     
+    // Credits:
+    // https://electronics.stackexchange.com/questions/176721/how-to-smooth-analog-data
+    // https://www.luisllamas.es/en/arduino-exponential-low-pass/
+    //      
 
     int rawAnalogValue = analogRead(mPin);
-    rawAnalogValue = map(rawAnalogValue, 0, 4095, 0, 127);
 
     mSmoothedAnalogValue = mSmoothingFactor * rawAnalogValue + (1 - mSmoothingFactor) * mSmoothedAnalogValue;
     

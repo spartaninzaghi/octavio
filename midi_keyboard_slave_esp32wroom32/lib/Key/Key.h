@@ -37,11 +37,11 @@ private:
     /// The zero point for this key, taking DC offset into account
     int mBaseline = 59;  
 
-    /// The time taken for the piezo disc of this key to debounce
-    const unsigned long mDebounceTime = 5000;
+    /// The time taken for the piezo disc of this key to debounce in milliseconds
+    const unsigned long mDebounceTime = 500;
 
     /// Smoothing factor to digitally filter analog data using Exponential Moving Average (EMA) LPF
-    const float mSmoothingFactor = 0.3;
+    const float mSmoothingFactor = 0.6;
 
     /// The smoothed ADC value
     float mSmoothedAnalogValue = 0.0;
@@ -71,7 +71,7 @@ public:
 
     // --------------------------------- Core Methods ------------------------------
     void Update();
-    uint8_t ScaleVelocity();
+    uint8_t ScaleVelocity(const int velocity);
     int analogReadSmoothedWithEMA(const int pin);
 
     Key() = default;
