@@ -1,8 +1,6 @@
 #include <Arduino.h>
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLEUtils.h>
-#include <BLE2902.h>
+#include <BLEMIDI_Transport.h>
+#include <hardware/BLEMIDI_ESP32_NimBLE.h>
 #include <SPI.h>
 
 #include <Utility.h>
@@ -10,6 +8,10 @@
 // Indicators
 #define LED 2
 
+// MIDI Macros
+#define CHANNEL 1 // Range: 0 - 15 (16 channels available)
+
+// Set up SPI macros and buffers
 #define SLAVE1_KEY_COUNT 2
 
 static const int spiClk = 5000000; // 5 MHz -- max: 10 MHz but choose value < 7.5 MHz
@@ -19,34 +21,18 @@ SPIClass *hspi = NULL;
 static constexpr size_t SLAVE1_BUFFER_SIZE = 8;
 static const uint8_t slave1Notes[SLAVE1_KEY_COUNT] {0x3C, 0x3D}; // for testing
 
-const Slave slave1 = {1, 2, 4};
-
 uint8_t slave1RxBuffer[SLAVE1_BUFFER_SIZE] {0};
 
 // Create BLE Server and Characteristic
-BLEServer *pServer = NULL;
-BLECharacteristic *pCharacteristic = NULL;
-
+BLEMIDI_CREATE_INSTANCE("Octavio MIDI", MIDI);
 bool deviceConnected = false;
-bool previousDeviceConnected = false;
 
 // ------------------------- Function Declarations ---------------------------
-void querySlave(SPIClass *spi, const int ss, uint8_t *receiveBuffer, const size_t bufferSize);
+void OnConnect();
+void OnDisconnect();
 void sendMidiMsgUpdatesOverBLE();
+void querySlave(SPIClass *spi, const int ss, uint8_t *receiveBuffer, const size_t bufferSize);
 
-class MyServerCallbacks : public BLEServerCallbacks
-{
-  void onConnect(BLEServer *pServer)
-  {
-    deviceConnected = true;
-  }
-
-  void onDisconnect(BLEServer *pServer)
-  {
-    deviceConnected = false;
-    pServer->startAdvertising();
-  }
-};
 
 void setup()
 {
@@ -72,40 +58,8 @@ void setup()
   //
   // ----------------------------- BLE Setup -----------------------------
   //
-
-  // Initialize BLE Device
-  BLEDevice::init("Octavio MIDI");
-
-  // Create BLE Server
-  pServer = BLEDevice::createServer();
-  pServer->setCallbacks(new MyServerCallbacks());
-
-  // Create BLE Service
-  BLEService *pService = pServer->createService(BLEUUID(SERVICE_UUID));
-
-  // Create BLE Characteristic with read, write-no-response, and notify properties
-  pCharacteristic = pService->createCharacteristic(
-    BLEUUID(CHARACTERISTIC_UUID),
-    BLECharacteristic::PROPERTY_READ     |
-    BLECharacteristic::PROPERTY_WRITE_NR |
-    BLECharacteristic::PROPERTY_NOTIFY
-  );
-
-  // Add the descriptor for notifications
-  pCharacteristic->addDescriptor(new BLE2902());
-
-  // Start the BLE service
-  pService->start();
-
-  // Start advertising
-  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
-  pAdvertising->addServiceUUID(pService->getUUID());
-  pAdvertising->setScanResponse(true);
-  pAdvertising->setMinPreferred(0x06); // Minimum connection time:
-  pAdvertising->setMaxPreferred(0x12); //
-  pAdvertising->start();
-
-  Serial.println("Waiting for a client connection...");
+  BLEMIDI.setHandleConnected(OnConnect);
+  BLEMIDI.setHandleDisconnected(OnDisconnect);
 }
 
 void loop()
@@ -119,23 +73,6 @@ void loop()
   {
     querySlave(hspi, HSPI_SS, slave1RxBuffer, SLAVE1_BUFFER_SIZE);
     sendMidiMsgUpdatesOverBLE();
-    previousDeviceConnected = true; // Update the previous connection state
-  }
-
-  // Disconnecting
-  if (!deviceConnected && previousDeviceConnected)
-  {
-    delay(500);
-    pServer->startAdvertising();
-    Serial.println("start advertising");
-    previousDeviceConnected = deviceConnected;
-  }
-
-  // connecting
-  if (deviceConnected && !previousDeviceConnected)
-  {
-    // do stuff here on connecting
-    previousDeviceConnected = deviceConnected;
   }
 }
 
@@ -167,6 +104,23 @@ void querySlave(SPIClass *spi, const int ss, uint8_t *receiveBuffer, const size_
 }
 
 /**
+ * @brief Callback function for when a bluetooth connection is successfully made
+ */
+void OnConnect()
+{
+  deviceConnected = true;
+}
+
+/**
+ * @brief Callback function for when a bluetooth connection is terminated
+ */
+void OnDisconnect()
+{
+  deviceConnected = false;
+  // restart advertising or check how that is accounted for in Library
+}
+
+/**
  * @brief Send ~real-time MIDI messages over BLE to connected device
  *
  * This function pipes MIDI messages to connected device over BLE, if
@@ -187,25 +141,14 @@ void sendMidiMsgUpdatesOverBLE()
       uint8_t velocity  = slave1RxBuffer[i + 1 * SLAVE1_KEY_COUNT];
       uint8_t status    = slave1RxBuffer[i + 2 * SLAVE1_KEY_COUNT];
 
-      uint8_t message[5] = {HEADER, TIMESTAMP, status, note, velocity};
-
-      // Debug Lines for monitoring master receipts of SPI messages
-      Serial.print("Current MIDI for note: ");
-      Serial.print(note, HEX);
-      Serial.print(" update: ");
-      Serial.print(readiness);
-      Serial.print(" | Status: ");
-      Serial.print(status, HEX);
-      Serial.print(" | Velocity: ");
-      Serial.print(velocity);
-      Serial.print(" | Current Time (s): ");
-      Serial.print(millis() / 1000);
-      Serial.println();
-
-      delay(5); // wait 10ms to buffer BLE transmission
-
-      pCharacteristic->setValue(message, sizeof(message));
-      pCharacteristic->notify();
+      if (status == NOTE_ON)
+      {
+        MIDI.sendNoteOn(note, velocity, CHANNEL);
+      } 
+      else
+      {
+        MIDI.sendNoteOff(note, velocity, CHANNEL);
+      }
     }
   }
 }
