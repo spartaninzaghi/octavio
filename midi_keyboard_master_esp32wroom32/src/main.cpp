@@ -8,8 +8,8 @@
 // Indicators
 #define LED 2
 
-// MIDI Macros
-#define CHANNEL 1 // Range: 0 - 15 (16 channels available)
+// MIDI macros
+#define CHANNEL 1 // Range: 1 - 16 channels available
 
 // Set up SPI macros and buffers
 #define SLAVE1_KEY_COUNT 2
@@ -36,10 +36,16 @@ void querySlave(SPIClass *spi, const int ss, uint8_t *receiveBuffer, const size_
 
 void setup()
 {
-  Serial.begin(115200);
+  //
+  // Initiate BLE MIDI instance
+  //
+  MIDI.begin(CHANNEL);
 
+  //
   // Initialize indicators
+  //
   pinMode(LED, OUTPUT);
+  digitalWrite(LED, LOW);
 
   //
   // ------------------------------ SPI Setup -----------------------------
@@ -48,7 +54,7 @@ void setup()
   // Initialize SPI and wait 2 seconds (2000 ms) to guarantee robust setup
   hspi = new SPIClass(HSPI);
 
-  delay(4000);
+  delay(2000);
 
   pinMode(HSPI_SS, OUTPUT);
   pinMode(HSPI_MOSI, OUTPUT);
@@ -64,11 +70,15 @@ void setup()
 
 void loop()
 {
+  MIDI.read();
+
   //
   //--- Handle MIDI message transmission based on connection status ---
   //
 
+  //
   // Connected: Notify client of changed value
+  //
   if (deviceConnected)
   {
     querySlave(hspi, HSPI_SS, slave1RxBuffer, SLAVE1_BUFFER_SIZE);
@@ -109,6 +119,14 @@ void querySlave(SPIClass *spi, const int ss, uint8_t *receiveBuffer, const size_
 void OnConnect()
 {
   deviceConnected = true;
+  
+  //
+  // Toggle on the on-board LED to indicate successful BLE connection
+  //
+  if (!digitalRead(LED))
+  {
+    digitalWrite(LED, HIGH);
+  }
 }
 
 /**
@@ -117,7 +135,14 @@ void OnConnect()
 void OnDisconnect()
 {
   deviceConnected = false;
-  // restart advertising or check how that is accounted for in Library
+
+  //
+  // Toggle off the on-board LED to indicate BLE disconnection
+  // 
+  if (digitalRead(LED))
+  {
+    digitalWrite(LED, LOW);
+  }
 }
 
 /**
