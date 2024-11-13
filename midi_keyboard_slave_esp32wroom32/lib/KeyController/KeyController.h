@@ -18,7 +18,7 @@ class KeyController
 {
 private:
     /// An array pointers to keys controlled by this controller
-    Key** mKeys;        
+    Key** mKeys = nullptr;        
 
     ///< The number of keys this controller controls
     size_t mKeyCount = 0;  
@@ -30,7 +30,7 @@ private:
     size_t mQueueSize = 0;
 
     ///< The transfer buffer this controller uses to send polled data to master over SPI
-    uint8_t* mTransferBuffer;
+    uint8_t* mTransferBuffer = nullptr;
 
 
 public:
