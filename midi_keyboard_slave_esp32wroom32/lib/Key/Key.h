@@ -38,7 +38,7 @@ private:
     int mBaseline = 59;  
 
     /// The time taken for the piezo disc of this key to debounce in milliseconds
-    const unsigned long mDebounceTime = 500;
+    const unsigned long mDebounceTime = 1000;
 
     /// Smoothing factor to digitally filter analog data using Exponential Moving Average (EMA) LPF
     const float mSmoothingFactor = 0.6;

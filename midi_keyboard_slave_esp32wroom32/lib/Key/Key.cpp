@@ -132,18 +132,13 @@ void Key::Update()
     switch(mState)
     {
         case Idle:
-            // Serial.println(">> Curreent State: Idle");
             //
             // While idle, if the registered velocity overshoots the threshold required 
             // to turn on the note of this key, but its note is currently off, update 
             // variables, inputs, and outputs. Then, transition to the NoteOn state
             //
-            if (velocity > mThresholdOn && !mNoteIsOn && !mReadyForMIDI)
+            if (velocity > mThresholdOn && !mNoteIsOn)
             {
-                // Serial.print(">> NOTE ON for key: "); Serial.print(mPin);
-                // Serial.print(" | Velocity: "); Serial.print(velocity);
-                // Serial.println();
-
                 mVelocity = velocity;
                 mStatus = NOTE_ON;
                 mNoteIsOn = true;
@@ -163,7 +158,6 @@ void Key::Update()
             break;
 
         case NoteOn:
-            // Serial.println(">> Curreent State: NoteOn");
             //
             // While the note of this key is on, if the newly registered velocity goes 
             // below the minimum threshold demarcating a NOTE OFF, but the note is 
@@ -172,10 +166,6 @@ void Key::Update()
             //
             if (velocity < mThresholdOff && mNoteIsOn)
             {
-                // Serial.print(">> NOTE OFF for key: "); Serial.print(mPin);
-                // Serial.print(" | Velocity: "); Serial.print(velocity);
-                // Serial.println();
-
                 mVelocity = 0;
                 mStatus = NOTE_OFF;
                 mNoteIsOn = false;
@@ -186,7 +176,6 @@ void Key::Update()
             else
             {
                 unsigned long elapsed = millis() - mNoteOnTimestamp;
-                // bool noteIsInDeadZone = mBaseline - velocity > 2;
                 bool newPeakDetected = velocity > mThresholdOn;
 
                 //
@@ -198,12 +187,6 @@ void Key::Update()
                 //
                 if (elapsed > mDebounceTime && mNoteIsOn && newPeakDetected)
                 {
-                    // Serial.println("----------------------- Debounce is helping quench floating note --------------------------");
-                    // Serial.print(">> NOTE OFF for key: "); Serial.print(mPin);
-                    // Serial.print(" | Velocity: "); Serial.print(velocity);
-                    // Serial.println();
-                    // Serial.println("--------------------- Debounce is DONE helping quench floating note -----------------------");
-                   
                     mVelocity = 0;
                     mStatus = NOTE_OFF;
                     mNoteIsOn = false;
@@ -223,7 +206,6 @@ void Key::Update()
             break;
         
         case NoteOff:
-            // Serial.println(">> Curreent State: NoteOff");
             //
             // From the NoteOff state transition directly to the Idle state
             //
@@ -232,7 +214,6 @@ void Key::Update()
             break;
 
         default:
-            // Serial.println(">> Curreent State: Default ???? Something is wrong here");
             //
             // To avoid fall-through behaviour, transition to the Idle state by default
             // as it is the initial state of the FSM
