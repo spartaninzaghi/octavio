@@ -63,7 +63,7 @@ KeyController::~KeyController()
  */
 void KeyController::initializeSpi(const uint8_t spiBus, const uint8_t spiMode, const size_t bufferSize, const size_t queueSize)
 {
-    delay(4000); // give SPI ~4 seconds to stabilize
+    delay(3000); // give SPI ~2 seconds to stabilize
 
     slave = new ESP32SPISlave;
     slave->setDataMode(SPI_MODE0);
@@ -106,7 +106,7 @@ void KeyController::run()
 
         //
         // The transfer buffer, mTransferBuffer is filled in this partition:
-        // -- payload 1 -> updates
+        // -- payload 1 -> readiness (indicates whether this key has an update)
         // -- payload 2 -> velocities
         // -- payload 3 -> statuses
         //
@@ -123,5 +123,5 @@ void KeyController::run()
     // program execution resumes.
     //
     slave->queue(mTransferBuffer, NULL, mBufferSize);
-    slave->trigger();
+    slave->wait();
 }
