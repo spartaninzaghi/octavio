@@ -17,34 +17,41 @@
 class Slave
 {
     private:
+        
         int mId = 0;                       ///< ID of this slave
         int mKeyCount = 0;                 ///< Number of keys monitored by this slave
-        uint8_t* mNotes = nullptr;         ///< Notes (pitches) associated with the keys monitored by this slave
+        const uint8_t* mNotes = nullptr;   ///< Notes (pitches) associated with the keys monitored by this slave
+ 
+        // ------------------- SPI Commmunication Objects & Variables ------------------
 
         SPIClass* mSpi = nullptr;          ///< The SPI object that this slave object uses to communicate with the other side
-        int mBufferSize = 0;               ///< The size of the reception buffer for this slave
+        uint8_t mSpiClock = 1000000;       ///< The clock speed for this slave's SPI object
+        uint8_t mSpiBitOrder = MSBFIRST;   ///< The bit order for this slave's SPI object
+        uint8_t mSpiDateMode = SPI_MODE0;  ///< The data mode for this slave's SPI object
+        size_t mBufferSize = 0;            ///< The size of the reception buffer for this slave
         uint8_t* mReceiveBuffer = nullptr; ///< The buffer that this slave receives 
 
     public:
 
-        Slave(const int id, const int keyCount, uint8_t* notes, uint8_t* receiveBuffer);
+        Slave(const int id, const int keyCount, const uint8_t* notes);
         ~Slave();
     
         // ----------------------------------- Setters ---------------------------------
         void SetId(const int id);
         void SetKeyCount(int keyCount);
-        void SetNotes(uint8_t* notes);
+        void SetNotes(const uint8_t* notes);
         void SetSpi(SPIClass* spi);
         void SetReceiveBuffer(uint8_t* receiveBuffer);
 
         // ----------------------------------- Getters ---------------------------------
         int GetId() const;
         int GetKeyCount() const;
-        uint8_t* GetNotes() const;
+        const uint8_t* GetNotes() const;
         SPIClass* GetSpi() const;
         uint8_t* GetReceiveBuffer() const;
     
         // --------------------------------- Core Methods ------------------------------
+        void SetSpiParameters(SPIClass* spi, uint8_t spiClock, uint8_t bitOrder, uint8_t dataMode, const size_t bufferSize, uint8_t* receiveBuffer);
         void querySPIPeerOnOtherSide();
 
         Slave() = delete;
