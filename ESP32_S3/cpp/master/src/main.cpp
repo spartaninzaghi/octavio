@@ -27,8 +27,8 @@ Slave* slave2 = nullptr;
 static constexpr size_t BUFFER_SIZE1 = 8;
 static constexpr size_t BUFFER_SIZE2 = 8;
 
-static const uint8_t notes1[KEY_COUNT1] {0x3C, 0x3D}; // for testing
-static const uint8_t notes2[KEY_COUNT2] {0x3E, 0x3F}; // for testing
+const uint8_t notes1[KEY_COUNT1] {0x3C, 0x3D}; // for testing
+const uint8_t notes2[KEY_COUNT2] {0x3E, 0x3F}; // for testing
 
 uint8_t rxBuffer1[BUFFER_SIZE1] {0};
 uint8_t rxBuffer2[BUFFER_SIZE2] {0};
@@ -54,13 +54,6 @@ void setup()
   digitalWrite(LED, LOW);
 
   //
-  // ---------------------------- Slave Setup -----------------------------
-  //
-  // slave1 = new Slave(1, KEY_COUNT1, notes1, rxBuffer1);
-  // slave2 = new Slave(2, KEY_COUNT2, notes2, rxBuffer2);
-
-
-  //
   // ------------------------------ SPI Setup -----------------------------
   //
 
@@ -69,10 +62,30 @@ void setup()
 
   delay(2000);
 
+  //
+  // VSPI -> Slave 1
+  //
+  pinMode(VSPI_SS, OUTPUT);
+  pinMode(VSPI_MOSI, OUTPUT);
+  digitalWrite(VSPI_SS, HIGH);
+  vspi->begin(VSPI_SCLK, VSPI_MISO, VSPI_MOSI, VSPI_SS);
+  
+  //
+  // HSPI -> Slave 2
+  //
   pinMode(HSPI_SS, OUTPUT);
   pinMode(HSPI_MOSI, OUTPUT);
   digitalWrite(HSPI_SS, HIGH);
   hspi->begin(HSPI_SCLK, HSPI_MISO, HSPI_MOSI, HSPI_SS);
+
+  //
+  // ---------------------------- Slave Setup -----------------------------
+  //
+  slave1 = new Slave(1, KEY_COUNT1, notes1);
+  slave2 = new Slave(2, KEY_COUNT2, notes2);
+
+  slave1->SetSpiParameters(vspi, spiClock, MSBFIRST, SPI_MODE0, BUFFER_SIZE1, rxBuffer1);
+  slave1->SetSpiParameters(hspi, spiClock, MSBFIRST, SPI_MODE0, BUFFER_SIZE2, rxBuffer2);
 }
 
 void loop()
@@ -102,21 +115,24 @@ void loop()
  * @param receiveBuffer The buffer to receive the response of the query into
  * @param bufferSize The size of the buffer to receive the query response into
  */
-void querySlave(SPIClass *spi, const int ss, uint8_t *receiveBuffer, const size_t bufferSize)
+void querySlaves(SPIClass *spi, const int ss, uint8_t *receiveBuffer, const size_t bufferSize)
 {
-  /* TODO: Change to querySlaves */
-  
   //
-  // Master receives data from slave with the following partition
+  // Master receives data from its slaves with the following partition
   // -----------------------------------------------------------
   // |   1 READINESS   |    2 VELOCITIES    |    3 STATUSES    |
   // -----------------------------------------------------------
   //
-  spi->beginTransaction(SPISettings(spiClock, MSBFIRST, SPI_MODE0));
-  digitalWrite(ss, LOW);
-  spi->transferBytes(NULL, receiveBuffer, bufferSize);
-  digitalWrite(ss, HIGH);
-  spi->endTransaction();
+
+  //
+  // After each slave completes its query, the receive buffer corresponding to that
+  // slave is updated such that:
+  //
+  // rxBuffer1: updates for slave 1
+  // rxBuffer2: updates for slave 2
+  //
+  slave1->querySPIPeerOnOtherSide();
+  slave2->querySPIPeerOnOtherSide();
 }
 
 
@@ -129,8 +145,11 @@ void querySlave(SPIClass *spi, const int ss, uint8_t *receiveBuffer, const size_
  */
 void sendMidiMsgUpdatesOverUSB()
 {
-  /** TODO: iterate over list of slaves */
   // ESP is little endian. Read buffer from LSB
+
+  //
+  // ------------------------ Slave 1 MIDI Transmission -------------------------
+  //
   for (int i = 0; i < KEY_COUNT1; i++)
   {
     uint8_t readiness = rxBuffer1[i + 0 * KEY_COUNT1];
@@ -140,7 +159,32 @@ void sendMidiMsgUpdatesOverUSB()
       uint8_t note = notes1[i];
 
       uint8_t velocity  = rxBuffer1[i + 1 * KEY_COUNT1];
-      uint8_t status    = rxBuffer2[i + 2 * KEY_COUNT1];
+      uint8_t status    = rxBuffer1[i + 2 * KEY_COUNT1];
+
+      if (status == NOTE_ON)
+      {
+        MIDI.sendNoteOn(note, velocity, CHANNEL);
+      } 
+      else
+      {
+        MIDI.sendNoteOff(note, velocity, CHANNEL);
+      }
+    }
+  }
+
+  //
+  // ------------------------ Slave 2 MIDI Transmission -------------------------
+  //
+  for (int i = 0; i < KEY_COUNT2; i++)
+  {
+    uint8_t readiness = rxBuffer2[i + 0 * KEY_COUNT2];
+
+    if (readiness == 0x01)
+    {
+      uint8_t note = notes2[i];
+
+      uint8_t velocity  = rxBuffer2[i + 1 * KEY_COUNT2];
+      uint8_t status    = rxBuffer2[i + 2 * KEY_COUNT2];
 
       if (status == NOTE_ON)
       {
