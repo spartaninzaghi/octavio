@@ -11,7 +11,6 @@
 #define SLAVE_H
 
 #include <Arduino.h>
-#include <USB-MIDI.h>
 #include <SPI.h>
 
 class Slave
@@ -25,7 +24,7 @@ class Slave
         // ------------------- SPI Commmunication Objects & Variables ------------------
 
         SPIClass* mSpi = nullptr;          ///< The SPI object that this slave object uses to communicate with the other side
-        uint8_t mSpiClock = 1000000;       ///< The clock speed for this slave's SPI object
+        uint32_t mSpiClock = 1000000;       ///< The clock speed for this slave's SPI object
         uint8_t mSpiBitOrder = MSBFIRST;   ///< The bit order for this slave's SPI object
         uint8_t mSpiDateMode = SPI_MODE0;  ///< The data mode for this slave's SPI object
         size_t mBufferSize = 0;            ///< The size of the reception buffer for this slave
@@ -51,7 +50,7 @@ class Slave
         uint8_t* GetReceiveBuffer() const;
     
         // --------------------------------- Core Methods ------------------------------
-        void SetSpiParameters(SPIClass* spi, uint8_t spiClock, uint8_t bitOrder, uint8_t dataMode, const size_t bufferSize, uint8_t* receiveBuffer);
+        void SetSpiParameters(SPIClass* spi, uint32_t spiClock, uint8_t bitOrder, uint8_t dataMode, const size_t bufferSize, uint8_t* receiveBuffer);
         void querySPIPeerOnOtherSide();
 
         Slave() = delete;

@@ -1,7 +1,8 @@
-#include "Slave.h"
 /**
- *
+ * @file Slave.cpp
+ * @author Mate Narh
  */
+#include "Slave.h"
 
 
 /**
@@ -115,7 +116,7 @@ uint8_t* Slave::GetReceiveBuffer() const
  * @param bufferSize The size of the reception buffer for this SPI communication
  * @param receiveBuffer The receive buffer used to collect data in this SPI communication
  */
-void Slave::SetSpiParameters(SPIClass* spi, uint8_t spiClock, uint8_t bitOrder, uint8_t dataMode, const size_t bufferSize, uint8_t* receiveBuffer)
+void Slave::SetSpiParameters(SPIClass* spi, uint32_t spiClock, uint8_t bitOrder, uint8_t dataMode, const size_t bufferSize, uint8_t* receiveBuffer)
 {
     mSpi = spi;
     mSpiClock = spiClock;
