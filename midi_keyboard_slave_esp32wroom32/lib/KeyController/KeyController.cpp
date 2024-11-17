@@ -107,12 +107,20 @@ void KeyController::run()
         //
         // The transfer buffer, mTransferBuffer is filled in this partition:
         // -- payload 1 -> readiness (indicates whether this key has an update)
-        // -- payload 2 -> velocities
+        // -- payload 2 --> velocities
         // -- payload 3 -> statuses
         //
         mTransferBuffer[i + 0 * mKeyCount] = key->IsReadyForMIDI();
         mTransferBuffer[i + 1 * mKeyCount] = key->GetVelocity();
         mTransferBuffer[i + 2 * mKeyCount] = key->GetStatus();
+
+        //
+        // Debug lines
+        //
+        Serial.print(" | Key: "); Serial.print(key->GetNote());
+        Serial.print(" | Readiness: "); Serial.print(key->IsReadyForMIDI());
+        Serial.print(" | Velocity: "); Serial.print(key->GetVelocity());
+        Serial.println(" | Status: "); Serial.print(key->GetStatus());
     }
 
     //
