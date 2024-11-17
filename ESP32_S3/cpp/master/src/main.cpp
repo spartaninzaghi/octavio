@@ -14,25 +14,25 @@
 
 // ----------------------------- Set up SPI macros ----------------------------
 
-static const uint32_t spiClock = 5000000; // 5 MHz -- max: 10 MHz but choose value < 7.5 MHz
+static const uint32_t spiClock = 10000000; // 10 MHz -- max: 10 MHz but choose value < 7.5 MHz
 
-// SPIClass *fspi = nullptr;
+SPIClass *fspi = nullptr;
 SPIClass *hspi = nullptr;
 
 // ----------------------------- Slave preparation ---------------------------
-// Slave* slave1 = nullptr;
+Slave* slave1 = nullptr;
 Slave* slave2 = nullptr;
 
-// static constexpr size_t BUFFER_SIZE1 = 8;
+static constexpr size_t BUFFER_SIZE1 = 8;
 static constexpr size_t BUFFER_SIZE2 = 8;
 
-// const uint8_t notes1[KEY_COUNT1] {0x3C, 0x3D}; // for testing
+const uint8_t notes1[KEY_COUNT1] {0x3C, 0x3D}; // for testing
 const uint8_t notes2[KEY_COUNT2] {0x3C, 0x3D}; // for testing
 
-// uint8_t rxBuffer1[BUFFER_SIZE1] {0};
+uint8_t rxBuffer1[BUFFER_SIZE1] {0};
 uint8_t rxBuffer2[BUFFER_SIZE2] {0};
 
-// Create USB2IDI i;nstance
+// Create USB2IDI instance
 USBMIDI usbMIDI;
 
 // ------------------------- Function Declarations ---------------------------
@@ -58,7 +58,7 @@ void setup()
   //
   // Initialize SPI and wait 2 seconds (2000 ms) to stabilize setup
   //
-  // fspi = new SPIClass(FSPI);
+  fspi = new SPIClass(FSPI);
   hspi = new SPIClass(HSPI);
 
   delay(2000);
@@ -66,11 +66,11 @@ void setup()
   //
   // GP-SPI2: FSPI -> Slave 1
   //
-  // pinMode(FSPI_SS, OUTPUT);
-  // pinMode(FSPI_MOSI, OUTPUT);
-  // digitalWrite(FSPI_SS, HIGH);
-  // fspi->begin(FSPI_SCLK, FSPI_MISO, FSPI_MOSI, FSPI_SS);
-  // Serial.println("SPI setup complete for slave 1 | Type: GP-SPI2 / FSPI");
+  pinMode(FSPI_SS, OUTPUT);
+  pinMode(FSPI_MOSI, OUTPUT);
+  digitalWrite(FSPI_SS, HIGH);
+  fspi->begin(FSPI_SCLK, FSPI_MISO, FSPI_MOSI, FSPI_SS);
+  Serial.println("SPI setup complete for slave 1 | Type: GP-SPI2 / FSPI");
   
   //
   // GP-SPI3: HSPI -> Slave 2
@@ -84,16 +84,16 @@ void setup()
   //
   // ----------------------- Buffer Initizialization ----------------------
   //
-  // memset(rxBuffer1, 0, BUFFER_SIZE1);
+  memset(rxBuffer1, 0, BUFFER_SIZE1);
   memset(rxBuffer2, 0, BUFFER_SIZE2);
 
   //
   // ---------------------------- Slave Setup -----------------------------
   //
-  // slave1 = new Slave(1, KEY_COUNT1, notes1);
+  slave1 = new Slave(1, KEY_COUNT1, notes1);
   slave2 = new Slave(2, KEY_COUNT2, notes2);
 
-  // slave1->SetSpiParameters(fspi, spiClock, MSBFIRST, SPI_MODE0, BUFFER_SIZE1, rxBuffer1);
+  slave1->SetSpiParameters(fspi, spiClock, MSBFIRST, SPI_MODE0, BUFFER_SIZE1, rxBuffer1);
   slave2->SetSpiParameters(hspi, spiClock, MSBFIRST, SPI_MODE0, BUFFER_SIZE2, rxBuffer2);
 }
 
@@ -106,8 +106,8 @@ void loop()
   //
   // Connected: Send MIDI to host over USB
   //
-    querySlaves();
-    sendMidiMsgUpdatesOverUSB();
+  querySlaves();
+  sendMidiMsgUpdatesOverUSB();
 }
 
 /**
@@ -133,7 +133,7 @@ void querySlaves()
   // rxBuffer1: updates for slave 1
   // rxBuffer2: updates for slave 2
   //
-  // slave1->querySPIPeerOnOtherSide();
+  slave1->querySPIPeerOnOtherSide();
   slave2->querySPIPeerOnOtherSide();
 }
 
@@ -152,27 +152,27 @@ void sendMidiMsgUpdatesOverUSB()
   //
   // ------------------------ Slave 1 MIDI Transmission -------------------------
   //
-  // for (int i = 0; i < KEY_COUNT1; i++)
-  // {
-  //   uint8_t readiness = rxBuffer1[i + 0 * KEY_COUNT1];
+  for (int i = 0; i < KEY_COUNT1; i++)
+  {
+    uint8_t readiness = rxBuffer1[i + 0 * KEY_COUNT1];
 
-  //   if (readiness == 0x01)
-  //   {
-  //     uint8_t note = notes1[i];
+    if (readiness == 0x01)
+    {
+      uint8_t note = notes1[i];
 
-  //     uint8_t velocity  = rxBuffer1[i + 1 * KEY_COUNT1];
-  //     uint8_t status    = rxBuffer1[i + 2 * KEY_COUNT1];
+      uint8_t velocity  = rxBuffer1[i + 1 * KEY_COUNT1];
+      uint8_t status    = rxBuffer1[i + 2 * KEY_COUNT1];
 
-  //     if (status == NOTE_ON)
-  //     {
-  //       usbMIDI.noteOn(note, velocity, CHANNEL);
-  //     } 
-  //     else
-  //     {
-  //       usbMIDI.noteOff(note, velocity, CHANNEL);
-  //     }
-  //   }
-  // }
+      if (status == NOTE_ON)
+      {
+        usbMIDI.noteOn(note, velocity, CHANNEL);
+      } 
+      else
+      {
+        usbMIDI.noteOff(note, velocity, CHANNEL);
+      }
+    }
+  }
 
   //
   // ------------------------ Slave 2 MIDI Transmission -------------------------
@@ -191,13 +191,16 @@ void sendMidiMsgUpdatesOverUSB()
       if (status == NOTE_ON)
       {
         usbMIDI.noteOn(note, velocity, CHANNEL);
-        if (!digitalRead(LED_BUILTIN)) digitalWrite(LED_BUILTIN, HIGH);
+        digitalWrite(LED_BUILTIN, HIGH);
       } 
       else
       {
         usbMIDI.noteOff(note, velocity, CHANNEL);
-        if (digitalRead(LED_BUILTIN)) digitalWrite(LED_BUILTIN, LOW);
+        digitalWrite(LED_BUILTIN, LOW);
       }
     }
   }
+
+  memset(rxBuffer1, 0, BUFFER_SIZE1);
+  memset(rxBuffer2, 0, BUFFER_SIZE2);
 }
