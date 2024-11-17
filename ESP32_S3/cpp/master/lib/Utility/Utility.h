@@ -8,18 +8,17 @@
 #ifndef UTILITY_H
 #define UTILITY_H
 
-#include <Arduino.h>
+// SPI Communication Macros
 
-#define VSPI_MISO MISO
-#define VSPI_MOSI MOSI
-#define VSPI_SCLK SCK
-#define VSPI_SS   SS
+#define FSPI_MOSI MOSI  // Default: 11  
+#define FSPI_MISO MISO  // Default: 13   
+#define FSPI_SCLK SCK   // Default: 12 
+#define FSPI_SS   SS    // Default: 10 | CS0
 
-// SPI Communication: HSPI Pins
-#define HSPI_MISO 12
-#define HSPI_MOSI 13
-#define HSPI_SCLK 14
-#define HSPI_SS   15
+#define HSPI_MISO 37    // GP-SPI3Q | Q stands for Quad Data I/O (QSPI)   
+#define HSPI_MOSI 35    // GP-SPI3D | D stands for Data Out
+#define HSPI_SCLK 36    // GP-SPI3  | Clock 
+#define HSPI_SS   45    // GP-SPI3  | Chip Select (CS)
 
 // MIDI Constants
 #define VELOCITY_ON  0x7F // for testing purposes
@@ -31,12 +30,5 @@
 
 #define NOTE_ON   0x90
 #define NOTE_OFF  0x80
-
-struct SlaveInfo 
-{
-    const int id;
-    const int keyCount;
-    uint8_t* notes;
-};
 
 #endif // UTILITY_H
