@@ -117,11 +117,16 @@ void KeyController::run()
         //
         // Debug lines
         //
-        Serial.print(" | Key: "); Serial.print(key->GetNote());
-        Serial.print(" | Readiness: "); Serial.print(key->IsReadyForMIDI());
-        Serial.print(" | Velocity: "); Serial.print(key->GetVelocity());
-        Serial.println(" | Status: "); Serial.print(key->GetStatus());
+        if (key->IsReadyForMIDI())
+        {
+            Serial.print(" | Key: ");       Serial.print(key->GetNote());
+            Serial.print(" | Readiness: "); Serial.print(key->IsReadyForMIDI());
+            Serial.print(" | Velocity: ");  Serial.print(key->GetVelocity());
+            Serial.print(" | Status: ");    Serial.print(key->GetStatus());
+            Serial.println();
+        }
     }
+    delay(80);
 
     //
     // Send the packet containing the data on the keys of this controller to the master
