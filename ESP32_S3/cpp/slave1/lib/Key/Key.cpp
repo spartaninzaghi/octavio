@@ -10,9 +10,12 @@
  * @brief Constructor
  * @param pin The GPIO pin bound to this key
  * @param note The note that this key sounds (0-127)
+ * @param maxAdcValue The maximum ADC value recorded by the ADC pin of this key
+ * @param baseline The analog value read by the ADC pin of this key that corresponds to 0 (range: 0 - 127)
  */
-Key::Key(const int pin, const uint8_t note, const int maxAdcValue, const int baseline, const int thresholdOn, const int thresholdOff) : 
-    mPin(pin), mNote(note), mMaxAdcValue(maxAdcValue), mBaseline(baseline), mThresholdOn(thresholdOn), mThresholdOff(thresholdOff) {}
+Key::Key(const int pin, const uint8_t note, const int maxAdcValue, const int baseline) : 
+    mPin(pin), mNote(note), mMaxAdcValue(maxAdcValue), mBaseline(baseline),
+    mThresholdOn(baseline + 2), mThresholdOff(baseline - 2) {}
 
 /**
  * @brief Bind this key to specified GPIO pin
@@ -22,6 +25,7 @@ void Key::SetPin(const int pin)
 {
     mPin = pin;
 }
+
 
 /**
  * @brief Set the current status of this key
@@ -40,7 +44,6 @@ void Key::SetVelocity(uint8_t velocity)
 {
     mVelocity = velocity;
 }
-
 
 /**
  * @brief Set the threshold beyond which triggers a NOTE ON message for this key
@@ -177,6 +180,7 @@ void Key::Update()
             {
                 unsigned long elapsed = millis() - mNoteOnTimestamp;
                 bool newPeakDetected = velocity > mThresholdOn;
+                bool isStuckInDeadZone = velocity < mBaseline;
 
                 //
                 // Otherwise, if a note is currently on, but it is within a deadzone and

@@ -26,7 +26,8 @@ static constexpr size_t QUEUE_SIZE = 1;  // Num of transaction b/n slave & maste
 
 KeyController* octave = nullptr;
 
-const int keyPins[KEY_COUNT] {KEY_7, KEY_10};
+const int keyPins[KEY_COUNT] {KEY_10, KEY_7};
+const int baselines[KEY_COUNT] {61, 60};
 
 void setup()
 {
@@ -43,7 +44,7 @@ void setup()
   //
   // Create new key controller
   //
-  octave = new KeyController(KEY_COUNT, keyPins, START_NOTE, RESOLUTION);
+  octave = new KeyController(KEY_COUNT, keyPins, baselines, START_NOTE, RESOLUTION);
   
   // initiate spi instance
   pinMode(SPI_MISO, OUTPUT);

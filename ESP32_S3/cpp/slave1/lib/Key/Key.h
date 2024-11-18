@@ -50,7 +50,7 @@ private:
 
 public:
 
-    Key(const int pin, const uint8_t note, const int maxAdcValue, const int baseline, const int thresholdOn, const int thresholdOff);
+    Key(const int pin, const uint8_t note, const int maxAdcValue, const int baseline);
     ~Key() {};
 
 

@@ -6,20 +6,17 @@
 #include "KeyController.h"
 #include <ESP32SPIslave.h>
 
-#define BASELINE      61
-#define THRESHOLD_ON  63
-#define THRESHOLD_OFF 59
-
 ESP32SPISlave* slave;
 
 /**
  * @brief Constructor
  * @param keyCount Number of keys to control
  * @param keyPins Array of GPIO pins for the keys of this controller
+ * @param baselines The zero-equivalent ADC values for the keys of this controller
  * @param startNote The start note of this controllers key range. eg. Middle C
  * @param resolution The resolution for analog reading the ACP pins of the keys for this controller
  */
-KeyController::KeyController(const size_t keyCount, const int *keyPins, uint8_t startNote, const int resolution)
+KeyController::KeyController(const size_t keyCount, const int *keyPins, const int *baselines, uint8_t startNote, const int resolution)
 {
     //
     // Initialize array of pointers to Keys
@@ -41,7 +38,7 @@ KeyController::KeyController(const size_t keyCount, const int *keyPins, uint8_t 
         //
         // Create a pointer to this key and store it in the array for all keys
         //
-        mKeys[i] = new Key(keyPins[i], note, maxAdcValue, BASELINE, THRESHOLD_ON, THRESHOLD_OFF);
+        mKeys[i] = new Key(keyPins[i], note, maxAdcValue, baselines[i]);
     }
     Serial.println("Done setting up key controller ...");
 }
@@ -133,5 +130,5 @@ void KeyController::run()
     // program execution resumes.
     //
     slave->queue(mTransferBuffer, NULL, mBufferSize);
-    slave->trigger();
+    slave->wait();
 }
