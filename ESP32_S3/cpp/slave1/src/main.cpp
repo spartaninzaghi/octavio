@@ -13,7 +13,7 @@
 
 // Key constant helpers
 #define KEY_COUNT   2    // for testing purposes
-#define START_NOTE  0x3C // Middle C: C3 | (int) 60 
+#define START_NOTE  0x3C // Middle C: C4 | (int) 60 
 
 #define RESOLUTION  12
 

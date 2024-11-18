@@ -19,7 +19,7 @@ static const int spiClk = 5000000; // 5 MHz -- max: 10 MHz but choose value < 7.
 SPIClass *hspi = NULL;
 
 static constexpr size_t SLAVE1_BUFFER_SIZE = 8;
-static const uint8_t slave1Notes[SLAVE1_KEY_COUNT] {0x3C, 0x3D}; // for testing
+static const uint8_t slave1Notes[SLAVE1_KEY_COUNT] {0x3C, 0x3D}; // {C4, C4#}for testing
 
 uint8_t slave1RxBuffer[SLAVE1_BUFFER_SIZE] {0};
 

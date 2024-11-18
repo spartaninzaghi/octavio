@@ -26,8 +26,8 @@ Slave* slave2 = nullptr;
 static constexpr size_t BUFFER_SIZE1 = 8;
 static constexpr size_t BUFFER_SIZE2 = 8;
 
-const uint8_t notes1[KEY_COUNT1] {0x3C, 0x3D}; // for testing
-const uint8_t notes2[KEY_COUNT2] {0x3C, 0x3D}; // for testing
+const uint8_t notes1[KEY_COUNT1] {0x3C, 0x3D}; // {C4, C4#} for testing
+const uint8_t notes2[KEY_COUNT2] {0x3C, 0x3D}; // {C4, C4#} for testing
 
 uint8_t rxBuffer1[BUFFER_SIZE1] {0};
 uint8_t rxBuffer2[BUFFER_SIZE2] {0};
