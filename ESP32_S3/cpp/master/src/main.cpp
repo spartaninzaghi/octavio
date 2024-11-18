@@ -191,12 +191,10 @@ void sendMidiMsgUpdatesOverUSB()
       if (status == NOTE_ON)
       {
         usbMIDI.noteOn(note, velocity, CHANNEL);
-        digitalWrite(LED_BUILTIN, HIGH);
       } 
       else
       {
         usbMIDI.noteOff(note, velocity, CHANNEL);
-        digitalWrite(LED_BUILTIN, LOW);
       }
     }
   }
