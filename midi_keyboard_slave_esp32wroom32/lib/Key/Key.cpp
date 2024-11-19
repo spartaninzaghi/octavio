@@ -274,3 +274,5 @@ int Key::analogReadSmoothedWithEMA(const int pin)
     
     return static_cast<int>(mSmoothedAnalogValue);
 }
+
+

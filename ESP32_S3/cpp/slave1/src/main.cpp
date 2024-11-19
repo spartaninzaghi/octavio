@@ -27,7 +27,7 @@ static constexpr size_t QUEUE_SIZE = 1;  // Num of transaction b/n slave & maste
 KeyController* octave = nullptr;
 
 const int keyPins[KEY_COUNT] {KEY_10, KEY_7};
-const int baselines[KEY_COUNT] {61, 60};
+const int baselines[KEY_COUNT] {62, 61};
 
 void setup()
 {

@@ -42,7 +42,7 @@ private:
     const unsigned long mDebounceTime = 1000;
 
     /// Smoothing factor to digitally filter analog data using Exponential Moving Average (EMA) LPF
-    const float mSmoothingFactor = 0.6;
+    const float mSmoothingFactor = 0.4;
 
     /// The smoothed ADC value
     float mSmoothedAnalogValue = 0.0;

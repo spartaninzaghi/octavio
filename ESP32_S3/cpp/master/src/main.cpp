@@ -14,7 +14,7 @@
 
 // ----------------------------- Set up SPI macros ----------------------------
 
-static const uint32_t spiClock = 10000000; // 10 MHz -- max: 10 MHz but choose value < 7.5 MHz
+static const uint32_t spiClock = 5000000; // 5 MHz -- max: 10 MHz but choose value < 7.5 MHz
 
 SPIClass *fspi = nullptr;
 SPIClass *hspi = nullptr;
@@ -133,7 +133,7 @@ void querySlaves()
   // rxBuffer1: updates for slave 1
   // rxBuffer2: updates for slave 2
   //
-  slave1->querySPIPeerOnOtherSide();
+  // slave1->querySPIPeerOnOtherSide();
   slave2->querySPIPeerOnOtherSide();
 }
 
@@ -152,27 +152,27 @@ void sendMidiMsgUpdatesOverUSB()
   //
   // ------------------------ Slave 1 MIDI Transmission -------------------------
   //
-  for (int i = 0; i < KEY_COUNT1; i++)
-  {
-    uint8_t readiness = rxBuffer1[i + 0 * KEY_COUNT1];
+  // for (int i = 0; i < KEY_COUNT1; i++)
+  // {
+  //   uint8_t readiness = rxBuffer1[i + 0 * KEY_COUNT1];
 
-    if (readiness == 0x01)
-    {
-      uint8_t note = notes1[i];
+  //   if (readiness == 0x01)
+  //   {
+  //     uint8_t note = notes1[i];
 
-      uint8_t velocity  = rxBuffer1[i + 1 * KEY_COUNT1];
-      uint8_t status    = rxBuffer1[i + 2 * KEY_COUNT1];
+  //     uint8_t velocity  = rxBuffer1[i + 1 * KEY_COUNT1];
+  //     uint8_t status    = rxBuffer1[i + 2 * KEY_COUNT1];
 
-      if (status == NOTE_ON)
-      {
-        usbMIDI.noteOn(note, velocity, CHANNEL);
-      } 
-      else
-      {
-        usbMIDI.noteOff(note, velocity, CHANNEL);
-      }
-    }
-  }
+  //     if (status == NOTE_ON)
+  //     {
+  //       usbMIDI.noteOn(note, velocity, CHANNEL);
+  //     } 
+  //     else
+  //     {
+  //       usbMIDI.noteOff(note, velocity, CHANNEL);
+  //     }
+  //   }
+  // }
 
   //
   // ------------------------ Slave 2 MIDI Transmission -------------------------

@@ -60,7 +60,7 @@ KeyController::~KeyController()
  */
 void KeyController::initializeSpi(const uint8_t spiBus, const uint8_t spiMode, const size_t bufferSize, const size_t queueSize)
 {
-    delay(3000); // give SPI ~2 seconds to stabilize
+    delay(2000); // give SPI ~2 seconds to stabilize
 
     slave = new ESP32SPISlave;
     slave->setDataMode(SPI_MODE0);
