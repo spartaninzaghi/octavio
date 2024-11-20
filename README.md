@@ -1,13 +1,13 @@
 # octavIO
 octavIO 25-Key Scalable MIDI Keyboard using ESP32-S3
 
-The current version includes prototype with ESP32-WROOM-32. The schematic and images of the hardware setup for the current protoype are included below.
+The current version includes prototype with ESP32-S3-DevkitC1-N16R8. The schematic and images of the hardware setup for the current protoype are included below.
 
 # Schematic
-![octavio_prototype_1 3_hardware_schematic_grid](https://github.com/user-attachments/assets/95c6167e-3a73-436b-b6bd-6916351a9930)
+![v2 1_hardware_schematic_grid](https://github.com/user-attachments/assets/32545c08-1097-410c-92c7-284a4804e36f)
 
 # Hardware Setup
-![octavio_prototype1 3_topview](https://github.com/user-attachments/assets/65cb4e6e-f472-4c6b-86b8-11a42d80e687)
+![v2 1_playing_C4_note_on_bandlab_iOS_topview](https://github.com/user-attachments/assets/6449a432-a545-493e-bfeb-796e9db91419)
 
 # 3-Resistor Voltage Divider DC Offset Circuit
 ![image](https://github.com/user-attachments/assets/008523da-6e5c-458b-8677-bd4b666d11bf)
