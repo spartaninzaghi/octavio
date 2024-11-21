@@ -15,7 +15,14 @@
  */
 Key::Key(const int pin, const uint8_t note, const int maxAdcValue, const int baseline) : 
     mPin(pin), mNote(note), mMaxAdcValue(maxAdcValue), mBaseline(baseline),
-    mThresholdOn(baseline + 2), mThresholdOff(baseline - 2) {}
+    mThresholdOn(baseline + 2), mThresholdOff(baseline - 2) {
+
+        Serial.print("Details for note: "); Serial.print(note);
+        Serial.println();
+        Serial.println(mThresholdOn);
+        Serial.println(mThresholdOff);
+        Serial.println(mBaseline);
+    }
 
 /**
  * @brief Bind this key to specified GPIO pin
@@ -125,7 +132,7 @@ bool Key::IsReadyForMIDI()
  */
 void Key::Update()
 {
-    int value = analogReadSmoothedWithEMA(mPin);
+    int value = analogRead(mPin);
     value = map(value, 0, 4095, 0, 127);
     
     uint8_t velocity = constrain(value, 0, 127);
