@@ -11,6 +11,8 @@
 #define CHANNEL      1 // Range: 1 - 16 channels available
 #define CABLE_NUMBER 1
 
+#define ADC_RESOLUTION 12
+
 #define KEY_COUNT1 2
 #define KEY_COUNT2 2
 
@@ -21,6 +23,7 @@
 #define TRANSPOSE_DT   16
 #define TRANSPOSE_SW   17
 
+#define PITCHBEND_PIN  4
 #define PITCHBEND_MIN -8192
 #define PITCHBEND_MAX  8191
 
@@ -58,12 +61,15 @@ void setup()
 {
   Serial.begin(115200);
 
+  // Read analog data at 12-bit resolution (Range: 0 - 4095)
+  analogReadResolution(ADC_RESOLUTION);
+
   //
   // ----------------------- USB & USBMIDI Initialization -----------------------
   //
   USB.begin();
   usbMIDI.begin();
-
+ 
   //
   // Initialize indicators
   //
@@ -75,7 +81,7 @@ void setup()
   //
   // No ADC pin setup required for pitch bend. Simply use values directly
   //
-  pitchWheel = new PitchWheel(PITCHBEND_MIN, PITCHBEND_MAX);
+  pitchWheel = new PitchWheel(PITCHBEND_PIN, PITCHBEND_MIN, PITCHBEND_MAX);
 
   //
   // ---------------------------- Transpose Setup -------------------------------
@@ -133,13 +139,11 @@ void setup()
 
 void loop()
 {
+  //
+  // ------------------------- Update Peripherals -------------------------
+  //
   pitchWheel->Update();
   transposeKnob->Update();
-
-  if (pitchWheel->GetBend())
-  {
-    // usbMIDI.pitchBend(pitchWheel->GetBend(), CHANNEL);
-  }
 
   //
   //--- Handle MIDI message transmission based on USB connection status ---
@@ -225,6 +229,13 @@ void sendMidiMsgUpdatesOverUSB()
 
     if (readiness == 0x01)
     {
+      //
+      // Transpose NOTE before sending it. 
+      //
+      // If the current transpose counter is 0, the note is sent unaltered
+      // Otherwise, note + counter is sent. eg. C4 becomes C4# for a count
+      // value of 1, meaning transpose by 1 semitone
+      //
       uint8_t note = notes2[i] + transposeKnob->GetCounter();
 
       uint8_t velocity  = rxBuffer2[i + 1 * KEY_COUNT2];
@@ -233,6 +244,14 @@ void sendMidiMsgUpdatesOverUSB()
       if (status == NOTE_ON)
       {
         usbMIDI.noteOn(note, velocity, CHANNEL);
+
+        //
+        // Only send a PITCH BEND after a NOTE ON message
+        // 
+        if (pitchWheel->GetBend())
+        {
+          usbMIDI.pitchBend(pitchWheel->GetBend(), CHANNEL);
+        }
       } 
       else
       {
