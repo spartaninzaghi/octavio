@@ -130,5 +130,5 @@ void KeyController::run()
     // program execution resumes.
     //
     slave->queue(mTransferBuffer, NULL, mBufferSize);
-    slave->wait();
+    slave->trigger();
 }
