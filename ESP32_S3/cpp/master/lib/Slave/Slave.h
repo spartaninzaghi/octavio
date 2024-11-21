@@ -53,9 +53,9 @@ class Slave
         void SetSpiParameters(SPIClass* spi, uint32_t spiClock, uint8_t bitOrder, uint8_t dataMode, const size_t bufferSize, uint8_t* receiveBuffer);
         void querySPIPeerOnOtherSide();
 
-        Slave() = delete;
-        Slave(const Slave &) = delete;
-        void operator=(const Slave &) = delete;
+        Slave() = delete;                        ///< Default constructor disabled 
+        Slave(const Slave &) = delete;           ///< Copy constructor disabled
+        void operator=(const Slave &) = delete;  ///< Assignment operator disabled
 };
 
 
