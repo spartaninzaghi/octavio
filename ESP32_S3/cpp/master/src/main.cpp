@@ -5,6 +5,7 @@
 
 #include <Slave.h>
 #include <RotaryEncoder.h>
+#include <PitchWheel.h>
 #include <Utility.h>
 
 #define CHANNEL      1 // Range: 1 - 16 channels available
@@ -20,7 +21,11 @@
 #define TRANSPOSE_DT   16
 #define TRANSPOSE_SW   17
 
-RotaryEncoder* transposeKnob = nullptr;
+#define PITCHBEND_MIN -8192
+#define PITCHBEND_MAX  8191
+
+PitchWheel *pitchWheel = nullptr;
+RotaryEncoder *transposeKnob = nullptr;
 
 // ----------------------------- Set up SPI macros ----------------------------
 
@@ -45,14 +50,16 @@ uint8_t rxBuffer2[BUFFER_SIZE2] {0};
 // Create USB2IDI instance
 USBMIDI usbMIDI;
 
-// ------------------------- Function Declarations ---------------------------
+// --------------------------- Function Declarations -----------------------------
 void querySlaves();
 void sendMidiMsgUpdatesOverUSB();
 
 void setup()
 {
+  Serial.begin(115200);
+
   //
-  // --------------------- USB & USBMIDI Initialization --------------------
+  // ----------------------- USB & USBMIDI Initialization -----------------------
   //
   USB.begin();
   usbMIDI.begin();
@@ -64,11 +71,19 @@ void setup()
   digitalWrite(LED_BUILTIN, LOW);
 
   //
-  // -------------------------- Transpose Setup ----------------------------
+  // ---------------------------- Pitch Bend Setup -------------------------------
+  //
+  // No ADC pin setup required for pitch bend. Simply use values directly
+  //
+  pitchWheel = new PitchWheel(PITCHBEND_MIN, PITCHBEND_MAX);
+
+  //
+  // ---------------------------- Transpose Setup -------------------------------
   //
   pinMode(TRANSPOSE_CLK, INPUT);
   pinMode(TRANSPOSE_DT, INPUT);
   pinMode(TRANSPOSE_SW, INPUT_PULLUP);
+  Serial.println("Just about entering transpose territory");
 
   transposeKnob = new RotaryEncoder(TRANSPOSE_CLK, TRANSPOSE_DT, TRANSPOSE_SW, TRANSPOSE_MAX, TRANSPOSE_MIN);
 
@@ -118,6 +133,14 @@ void setup()
 
 void loop()
 {
+  pitchWheel->Update();
+  transposeKnob->Update();
+
+  if (pitchWheel->GetBend())
+  {
+    // usbMIDI.pitchBend(pitchWheel->GetBend(), CHANNEL);
+  }
+
   //
   //--- Handle MIDI message transmission based on USB connection status ---
   //
