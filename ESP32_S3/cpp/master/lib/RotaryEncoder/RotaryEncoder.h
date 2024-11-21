@@ -52,7 +52,7 @@ class RotaryEncoder
         void SetCounterMin(int counterMin);
         void SetSwitchCallback(void(*callback)());
 
-        // ----------------------------------- Setters ------------------------------------
+        // ----------------------------------- Getters ------------------------------------
         int GetCounter() const;
         int GetCounterMax() const;
         int GetCounterMin() const;
@@ -66,8 +66,6 @@ class RotaryEncoder
         RotaryEncoder() = delete;                       ///< Default constructor disabled
         RotaryEncoder(const RotaryEncoder &) = delete;  ///< Copy constructor disabled
         void operator=(const RotaryEncoder &) = delete; ///< Assignment operator disabled
-
-
 };
 
 #endif // ROTARY_ENCODER_H
