@@ -4,30 +4,34 @@
  * @author Mate Narh
  */
 
-#include <Arduino.h>
 
 /**
  * @brief Constructor
+ * @param mPitchBendPin The ADC pin for reading this pitch wheel's pitch bend values
  * @param minBend The minimum bend readable by the analog sensor for this pitch wheel
  * @param maxBend The maximum bend readable by the analog sensor for this pitch wheel
  */
-PitchWheel::PitchWheel(const int minBend, const int maxBend) : mMinBend(minBend), mMaxBend(maxBend)
+PitchWheel::PitchWheel(const int pitchBendPin, const int16_t minBend, const int16_t maxBend) : 
+    mPitchBendPin(pitchBendPin), mMinBend(minBend), mMaxBend(maxBend)
 {
     //
-    // Average 20 samples to callibrate the analog joystick module and
+    // Average 100 samples to callibrate the analog joystick module and
     // set the minimum and maximum bend values
     //
-    int sample = 0;
+    int16_t sample = 0;
 
-    for (int i = 0; i < 20; i++)
+    for (int i = 0; i < mSampleSize; i++)
     {
-        sample += analogRead(mPin);
+        sample += analogRead(mPitchBendPin);
     }
 
-    int averageBend = sample / 20;
+    int16_t averageBend = sample / mSampleSize;
 
-    mMinBend = averageBend - mHysteresis;
-    mMaxBend = averageBend + mHysteresis;
+    Serial.print("Callibrated average bend: "); Serial.print(averageBend);
+    Serial.println();
+
+    // mDeadzoneMin = averageBend - mHysteresis;
+    // mDeadzoneMax = averageBend + mHysteresis;
 }
 
 /**
@@ -41,7 +45,7 @@ PitchWheel::~PitchWheel()
 /**
  * @brief Get the current bend value of this pitch wheel
  */
-int PitchWheel::GetBend() const
+int16_t PitchWheel::GetBend() const
 {
     return mBend;
 }
@@ -50,7 +54,7 @@ int PitchWheel::GetBend() const
  * @brief Get the minimum bend readable by this pitch wheel's analog sensors
  * @return The minimum bend readable by this pitch wheel's analog sensors
  */
-int PitchWheel::GetMinBend() const
+int16_t PitchWheel::GetMinBend() const
 {
     return mMinBend;
 }
@@ -59,7 +63,7 @@ int PitchWheel::GetMinBend() const
  * @brief Get the maximum bend readable by this pitch wheel's analog sensors
  * @return The maximum bend readable by this pitch wheel's analog sensors
  */
-int PitchWheel::GetMaxBend() const
+int16_t PitchWheel::GetMaxBend() const
 {
     return mMaxBend;
 }
@@ -68,7 +72,7 @@ int PitchWheel::GetMaxBend() const
  * @brief Get the deadzone floor for this pitch wheel
  * @return The deadzone floor for this pitch wheel
  */
-int PitchWheel::GetDeadzoneMin() const
+int16_t PitchWheel::GetDeadzoneMin() const
 {
     return mDeadzoneMin;
 }
@@ -77,7 +81,7 @@ int PitchWheel::GetDeadzoneMin() const
  * @brief Get the deadzone ceiling for this pitch wheel
  * @return The deadzone ceiling for this pitch wheel
  */
-int PitchWheel::GetDeadzoneMax() const
+int16_t PitchWheel::GetDeadzoneMax() const
 {
     return mDeadzoneMax;
 }
@@ -86,7 +90,7 @@ int PitchWheel::GetDeadzoneMax() const
  * @brief Set the minimum bend value read by this pitch wheel's analog sensors
  * @param bendMin The new minimum bend value to set
  */
-void PitchWheel::SetMinBend(const int bendMin)
+void PitchWheel::SetMinBend(const int16_t bendMin)
 {
     mMinBend = bendMin;
 }
@@ -95,7 +99,7 @@ void PitchWheel::SetMinBend(const int bendMin)
  * @brief Se the maximum bend value readable by this pitch wheel's analog sensors
  * @param bendMax The new bend deazone floor to set
  */
-void PitchWheel::SetMaxBend(const int bendMax)
+void PitchWheel::SetMaxBend(const int16_t bendMax)
 {
     mMaxBend = bendMax;
 }
@@ -104,7 +108,7 @@ void PitchWheel::SetMaxBend(const int bendMax)
  * @brief Set the minimum threshold for the deadzone
  * @param deadzoneMin The new deadzone floor to set
  */
-void PitchWheel::SetDeadzoneMin(const int deadzoneMin)
+void PitchWheel::SetDeadzoneMin(const int16_t deadzoneMin)
 {
     mDeadzoneMin = deadzoneMin;
 }
@@ -113,7 +117,7 @@ void PitchWheel::SetDeadzoneMin(const int deadzoneMin)
  * @brief Set the maximum threshold for the deadzone
  * @param deadzoneMax Thhe new deadzone ceiling to set
  */
-void PitchWheel::SetDeadzoneMax(const int deadzoneMax)
+void PitchWheel::SetDeadzoneMax(const int16_t deadzoneMax)
 {
     mDeadzoneMax = deadzoneMax;
 }
@@ -123,8 +127,8 @@ void PitchWheel::SetDeadzoneMax(const int deadzoneMax)
  */
 void PitchWheel::Update()
 {
-    int value = analogRead(mPin);
+    int16_t value = analogRead(mPitchBendPin);
 
-    mBend = (value < mDeadzoneMin) ? map(value, 0, mDeadzoneMin, mMinBend, mDeadzoneMin) :
+    mBend = (value < mDeadzoneMin) ? map(value, 0, mDeadzoneMin, mMinBend, 0) :
             (value > mDeadzoneMax) ? map(value, mDeadzoneMax, 4095, 0, mMaxBend) : 0; 
 }
