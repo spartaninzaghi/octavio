@@ -4,6 +4,7 @@
 #include <SPI.h>
 
 #include <Slave.h>
+#include <RotaryEncoder.h>
 #include <Utility.h>
 
 #define CHANNEL      1 // Range: 1 - 16 channels available
@@ -11,6 +12,15 @@
 
 #define KEY_COUNT1 2
 #define KEY_COUNT2 2
+
+#define TRANSPOSE_MAX  24
+#define TRANSPOSE_MIN -24
+
+#define TRANSPOSE_CLK  15
+#define TRANSPOSE_DT   16
+#define TRANSPOSE_SW   17
+
+RotaryEncoder* transposeKnob = nullptr;
 
 // ----------------------------- Set up SPI macros ----------------------------
 
@@ -52,6 +62,15 @@ void setup()
   //
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
+
+  //
+  // -------------------------- Transpose Setup ----------------------------
+  //
+  pinMode(TRANSPOSE_CLK, INPUT);
+  pinMode(TRANSPOSE_DT, INPUT);
+  pinMode(TRANSPOSE_SW, INPUT_PULLUP);
+
+  transposeKnob = new RotaryEncoder(TRANSPOSE_CLK, TRANSPOSE_DT, TRANSPOSE_SW, TRANSPOSE_MAX, TRANSPOSE_MIN);
 
   //
   // ------------------------------ SPI Setup ------------------------------
@@ -183,7 +202,7 @@ void sendMidiMsgUpdatesOverUSB()
 
     if (readiness == 0x01)
     {
-      uint8_t note = notes2[i];
+      uint8_t note = notes2[i] + transposeKnob->GetCounter();
 
       uint8_t velocity  = rxBuffer2[i + 1 * KEY_COUNT2];
       uint8_t status    = rxBuffer2[i + 2 * KEY_COUNT2];
@@ -199,6 +218,6 @@ void sendMidiMsgUpdatesOverUSB()
     }
   }
 
-  memset(rxBuffer1, 0, BUFFER_SIZE1);
-  memset(rxBuffer2, 0, BUFFER_SIZE2);
+  // memset(rxBuffer1, 0, BUFFER_SIZE1);
+  // memset(rxBuffer2, 0, BUFFER_SIZE2);
 }
