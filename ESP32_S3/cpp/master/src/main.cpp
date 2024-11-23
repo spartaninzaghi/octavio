@@ -11,7 +11,7 @@
 #define CHANNEL      1 // Range: 1 - 16 channels available
 #define CABLE_NUMBER 1
 
-#define ADC_RESOLUTION 12
+#define ADC_RESOLUTION 10
 
 #define KEY_COUNT1 2
 #define KEY_COUNT2 2
@@ -32,7 +32,7 @@ RotaryEncoder *transposeKnob = nullptr;
 
 // ----------------------------- Set up SPI macros ----------------------------
 
-static const uint32_t spiClock = 5000000; // 5 MHz -- max: 10 MHz but choose value < 7.5 MHz
+static const uint32_t spiClock = 10000000; // 10 MHz -- max: 10 MHz but choose value < 7.5 MHz
 
 SPIClass *fspi = nullptr;
 SPIClass *hspi = nullptr;
@@ -89,7 +89,6 @@ void setup()
   pinMode(TRANSPOSE_CLK, INPUT);
   pinMode(TRANSPOSE_DT, INPUT);
   pinMode(TRANSPOSE_SW, INPUT_PULLUP);
-  Serial.println("Just about entering transpose territory");
 
   transposeKnob = new RotaryEncoder(TRANSPOSE_CLK, TRANSPOSE_DT, TRANSPOSE_SW, TRANSPOSE_MAX, TRANSPOSE_MIN);
 
@@ -193,6 +192,13 @@ void querySlaves()
  */
 void sendMidiMsgUpdatesOverUSB()
 {
+  pitchWheel->Update();
+  Serial.println(pitchWheel->GetBend());
+  if (pitchWheel->GetBend())
+  {
+    usbMIDI.pitchBend(pitchWheel->GetBend(), CHANNEL);
+  }
+  
   // ESP is little endian. Read buffer from LSB
 
   //
@@ -230,6 +236,8 @@ void sendMidiMsgUpdatesOverUSB()
     if (readiness == 0x01)
     {
       //
+      // Only send a PITCH BEND after a NOTE
+      // 
       // Transpose NOTE before sending it. 
       //
       // If the current transpose counter is 0, the note is sent unaltered
@@ -244,14 +252,6 @@ void sendMidiMsgUpdatesOverUSB()
       if (status == NOTE_ON)
       {
         usbMIDI.noteOn(note, velocity, CHANNEL);
-
-        //
-        // Only send a PITCH BEND after a NOTE ON message
-        // 
-        if (pitchWheel->GetBend())
-        {
-          usbMIDI.pitchBend(pitchWheel->GetBend(), CHANNEL);
-        }
       } 
       else
       {
