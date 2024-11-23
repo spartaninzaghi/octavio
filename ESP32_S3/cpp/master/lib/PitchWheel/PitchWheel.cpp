@@ -18,18 +18,22 @@ PitchWheel::PitchWheel(const int pitchBendPin, const int16_t minBend, const int1
     // Average 100 samples to callibrate the analog joystick module and
     // set the minimum and maximum bend values
     //
-    int16_t sample = 0;
+    int sample = 0;
+    int sampleTotal = 0;
+    int16_t averageBend = 0;
 
     for (int i = 0; i < mSampleSize; i++)
     {
-        sample += analogRead(mPitchBendPin);
+        sample = analogRead(mPitchBendPin);
+        Serial.println(sample);
+
+        sampleTotal += sample;
     }
 
-    int16_t averageBend = sample / mSampleSize;
+    averageBend = sampleTotal / mSampleSize;
 
     Serial.print("Callibrated average bend: "); Serial.print(averageBend);
     Serial.println();
-
     // mDeadzoneMin = averageBend - mHysteresis;
     // mDeadzoneMax = averageBend + mHysteresis;
 }
