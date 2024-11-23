@@ -33,9 +33,11 @@ void setup()
 {
 
   // Sample analog pins at 12-bit resolution: 0-4095
+  analogSetAttenuation(ADC_11db);
   analogReadResolution(RESOLUTION);
+
   
-  Serial.begin(115200);
+   Serial.begin(115200);
   Serial.println("Starting setup ... ");
 
 
