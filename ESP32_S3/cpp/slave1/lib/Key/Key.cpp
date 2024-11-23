@@ -133,7 +133,8 @@ bool Key::IsReadyForMIDI()
 void Key::Update()
 {
     int value = analogRead(mPin);
-    value = map(value, 0, 4095, 0, 127);
+    // Serial.println(value);
+    value = map(value, 0, mMaxAdcValue, 0, 127);
     
     uint8_t velocity = constrain(value, 0, 127);
 
