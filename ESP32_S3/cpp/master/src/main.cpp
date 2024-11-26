@@ -192,12 +192,12 @@ void querySlaves()
  */
 void sendMidiMsgUpdatesOverUSB()
 {
-  pitchWheel->Update();
-  Serial.println(pitchWheel->GetBend());
-  if (pitchWheel->GetBend())
-  {
-    usbMIDI.pitchBend(pitchWheel->GetBend(), CHANNEL);
-  }
+  // pitchWheel->Update();
+  // Serial.println(pitchWheel->GetBend());
+  // if (pitchWheel->GetBend())
+  // {
+  //   usbMIDI.pitchBend(pitchWheel->GetBend(), CHANNEL);
+  // }
   
   // ESP is little endian. Read buffer from LSB
 
