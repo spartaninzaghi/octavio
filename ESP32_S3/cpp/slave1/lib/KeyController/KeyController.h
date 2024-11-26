@@ -35,7 +35,7 @@ private:
 
 public:
 
-    KeyController(const size_t keyCount, const int* keyPins, const int *baselines, uint8_t startNote, const int resoluiton);
+    KeyController(const size_t keyCount, const int* keyPins, const int* damperPins, const int threshold, uint8_t startNote, const int resoluiton);
     ~KeyController();
 
     void run();

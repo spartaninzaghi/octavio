@@ -12,11 +12,12 @@ ESP32SPISlave* slave;
  * @brief Constructor
  * @param keyCount Number of keys to control
  * @param keyPins Array of GPIO pins for the keys of this controller
- * @param baselines The zero-equivalent ADC values for the keys of this controller
+ * @param damperPins Array of GPIO pins for the dampers of the keys belonging to this controller
+ * @param threshold The trigger point above which the note for a key turns on
  * @param startNote The start note of this controllers key range. eg. Middle C
  * @param resolution The resolution for analog reading the ACP pins of the keys for this controller
  */
-KeyController::KeyController(const size_t keyCount, const int *keyPins, const int *baselines, uint8_t startNote, const int resolution)
+KeyController::KeyController(const size_t keyCount, const int *keyPins, const int *damperPins, const int threshold, uint8_t startNote, const int resolution)
 {
     //
     // Initialize array of pointers to Keys
@@ -38,7 +39,7 @@ KeyController::KeyController(const size_t keyCount, const int *keyPins, const in
         //
         // Create a pointer to this key and store it in the array for all keys
         //
-        mKeys[i] = new Key(keyPins[i], note, maxAdcValue, baselines[i]);
+        mKeys[i] = new Key(keyPins[i], damperPins[i], note, maxAdcValue, threshold);
     }
     Serial.println("Done setting up key controller ...");
 }
@@ -108,18 +109,6 @@ void KeyController::run()
         mTransferBuffer[i + 0 * mKeyCount] = key->IsReadyForMIDI();
         mTransferBuffer[i + 1 * mKeyCount] = key->GetVelocity();
         mTransferBuffer[i + 2 * mKeyCount] = key->GetStatus();
-
-        //
-        // Debug lines
-        //
-        // if (key->IsReadyForMIDI())
-        // {
-        //     Serial.print(" | Key: ");       Serial.print(key->GetNote());
-        //     Serial.print(" | Readiness: "); Serial.print(key->IsReadyForMIDI());
-        //     Serial.print(" | Velocity: ");  Serial.print(key->GetVelocity());
-        //     Serial.print(" | Status: ");    Serial.print(key->GetStatus());
-        //     Serial.println();
-        // }
     }
 
     //
