@@ -38,4 +38,16 @@
 #define KEY_11    15
 #define KEY_12    16
 
+// --------------- Damper ADC Pins on ESP32-S3 Devkit-C1 N16R8 ----------------
+#define DAMPER_1  17
+#define DAMPER_2  18
+
+// struct KeyInfo 
+// {
+//     const int notePin;
+//     const int damperPin;
+//     const int 
+
+// }
+
 #endif // UTILITY_H
