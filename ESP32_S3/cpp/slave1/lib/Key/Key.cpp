@@ -5,32 +5,33 @@
 
 #include "Key.h"
 
-
 /**
  * @brief Constructor
- * @param pin The GPIO pin bound to this key
+ * @param notePin The ADC pin that reads the velocity of this key's note/pitch
+ * @param damperPin The digital input pin that reads the status of this key's damper
  * @param note The note that this key sounds (0-127)
  * @param maxAdcValue The maximum ADC value recorded by the ADC pin of this key
- * @param baseline The analog value read by the ADC pin of this key that corresponds to 0 (range: 0 - 127)
+ * @param thershold The trigger point that evokes a NOTE ON status for this key (range: 0 - 127)
  */
-Key::Key(const int pin, const uint8_t note, const int maxAdcValue, const int baseline) : 
-    mPin(pin), mNote(note), mMaxAdcValue(maxAdcValue), mBaseline(baseline),
-    mThresholdOn(baseline + 2), mThresholdOff(baseline - 2) {
-
-        Serial.print("Details for note: "); Serial.print(note);
-        Serial.println();
-        Serial.println(mThresholdOn);
-        Serial.println(mThresholdOff);
-        Serial.println(mBaseline);
-    }
+Key::Key(const int notePin, const int damperPin, const uint8_t note, const int maxAdcValue, const int threshold) : 
+    mNotePin(notePin), mDamperPin(damperPin), mNote(note), mMaxAdcValue(maxAdcValue), mThreshold(threshold) {}
 
 /**
- * @brief Bind this key to specified GPIO pin
- * @param pin The GPIO pin bound to this key
+ * @brief Set the ADC pin that reads the note velocity values of this key
+ * @param notePin The ADC pin to set
  */
-void Key::SetPin(const int pin)
+void Key::SetNotePin(const int pin)
 {
-    mPin = pin;
+    mNotePin = pin;
+}
+
+/**
+ * @brief Set the digital input pin that reads the status of this key's damper
+ * @param damperPin The digital input pin that reads the status of this key's damper
+ */
+void Key::SetDamperPin(const int damperPin)
+{
+    mDamperPin = damperPin;
 }
 
 
@@ -54,29 +55,30 @@ void Key::SetVelocity(uint8_t velocity)
 
 /**
  * @brief Set the threshold beyond which triggers a NOTE ON message for this key
- * @param thresholdOn The NOTE ON-triggering threshold to set
+ * @param threshold The NOTE ON-triggering threshold to set
  */
-void Key::SetThresholdOn(uint8_t thresholdOn)
+void Key::SetThreshold(uint8_t threshold)
 {
-    mThresholdOn = thresholdOn;
+    mThreshold = threshold;
 }
 
 /**
- * @brief Set the threshold below which triggers a NOTE OFF message for this key
- * @param thresholdOff The NOTE OFF-triggering threshold to set
+ * @brief Return the ADC pin that reads the note velocity of this key
  */
-void Key::SetThresholdOff(uint8_t thresholdOff)
+int Key::GetNotePin()
 {
-    mThresholdOff = thresholdOff;
+    return mNotePin;
 }
 
+
 /**
- * @brief Return the GPIO pin that this key is bound to
+ * @brief Return the digital GPIO pin that determines the damper status for this key
  */
-int Key::GetPin()
+int Key::GetDamperPin()
 {
-    return mPin;
+    return mDamperPin;
 }
+
 
 /**
  * @brief Return the status of this key. False implies NoteOff, else NoteOn
@@ -106,17 +108,9 @@ uint8_t Key::GetNote()
 /**
  * @brief Get the NOTE ON threshold trigger for this key
  */
-uint8_t Key::GetThresholdOn()
+uint8_t Key::GetThreshold()
 {
-    return mThresholdOn;
-}
-
-/**
- * @brief Get the NOTE OFF threshold trigger for this key
- */
-uint8_t Key::GetThresholdOff()
-{
-    return mThresholdOff;
+    return mThreshold;
 }
 
 /**
@@ -132,32 +126,36 @@ bool Key::IsReadyForMIDI()
  */
 void Key::Update()
 {
-    int value = analogRead(mPin);
+    int value = analogRead(mNotePin);
     // Serial.println(value);
     value = map(value, 0, mMaxAdcValue, 0, 127);
     
     uint8_t velocity = constrain(value, 0, 127);
+    bool damperIsOn = !digitalRead(mDamperPin); // damper is connected to hall effect sensor that uses active low logic. Therefore LOW -> Damper On ...
 
-    Serial.println(velocity);
+    // Serial.println(velocity);
+    Serial.print(" | Note: "); Serial.print(mNote); 
+
 
     switch(mState)
     {
         case Idle:
+            Serial.print(" | State: Idle");
             //
             // While idle, if the registered velocity overshoots the threshold required 
-            // to turn on the note of this key, but its note is currently off, update 
+            // to turn on the note of this key, and the damper is off ("lifted"), update 
             // variables, inputs, and outputs. Then, transition to the NoteOn state
             //
-            if (velocity > mThresholdOn && !mNoteIsOn)
+            if (velocity > mThreshold && !damperIsOn)
             {
                 mVelocity = velocity;
                 mStatus = NOTE_ON;
                 mNoteIsOn = true;
                 mReadyForMIDI = true;
 
-                mNoteOnTimestamp = millis();
-
                 mState = NoteOn;
+
+                Serial.print(" | Velocity: "); Serial.print(velocity);
             }
             //
             // Otherwise, remain in this Idle state
@@ -169,13 +167,13 @@ void Key::Update()
             break;
 
         case NoteOn:
+            Serial.print(" | State: NoteOn");
             //
-            // While the note of this key is on, if the newly registered velocity goes 
-            // below the minimum threshold demarcating a NOTE OFF, but the note is 
-            // currently on, update variables, inputs, and outputs. Then, transition to
-            // the NoteOn state
+            // While the note of this key is on, if the damper turns on, signifying that the
+            // bottom of the key has returned to its rest state, update variables, inputs, & 
+            // outputs. Then, transition to the NoteOff state
             //
-            if (velocity < mThresholdOff && mNoteIsOn)
+            if (damperIsOn)
             {
                 mVelocity = 0;
                 mStatus = NOTE_OFF;
@@ -183,41 +181,62 @@ void Key::Update()
                 mReadyForMIDI = true;
 
                 mState = NoteOff;
+                Serial.print(" | Velocity: "); Serial.print(velocity);
             }
+            //
+            // Otherwise, if a note is currently on, but the key is pressed again, and the 
+            // resulting velocity overshoots the threshold without the damper turning on 
+            // (muting the string), update variables and transition to the PartialPressNoteOn 
+            // state. During this transition, send a NOTE OFF message to quench the penultimate 
+            // note before sending the new NOTE ON message at the newly registered velocity. 
+            // This is important because, "Every NOTE ON message requires its corresponding NOTE
+            // OFF message, otherwise the note will play forever"
+            // see: https://www.cs.cmu.edu/~music/cmsip/readings/MIDI%20tutorial%20for%20programmers.html
+            //
+            else if (velocity > mThreshold &&  !damperIsOn)
+            {
+                temp = velocity;
+                mVelocity = 0;
+                mStatus = NOTE_OFF;
+                mNoteIsOn = false;
+                mReadyForMIDI = true;
+
+                mState = PartialPressNoteOn;
+                Serial.print(" | Velocity: "); Serial.print(velocity);
+            }
+            //
+            // Else, finally, remain in this NOTE ON state. Why? The user might stil
+            // be holding down a key, causing the damper to remain lifted
+            //
             else
             {
-                unsigned long elapsed = millis() - mNoteOnTimestamp;
-                bool newPeakDetected = velocity > mThresholdOn;
-                bool isStuckInDeadZone = velocity < mBaseline;
-
-                //
-                // Otherwise, if a note is currently on, but it is within a deadzone and
-                // the maximum debounce time elapses, quench the note and transition it to 
-                // the NOTE OFF state. This is because, "Every NOTE ON message requires its 
-                // corresponding NOTE OFF message, otherwise the note will play forever"
-                // see: https://www.cs.cmu.edu/~music/cmsip/readings/MIDI%20tutorial%20for%20programmers.html
-                //
-                if (elapsed > mDebounceTime && mNoteIsOn && newPeakDetected)
-                {
-                    mVelocity = 0;
-                    mStatus = NOTE_OFF;
-                    mNoteIsOn = false;
-                    mReadyForMIDI = true;
-
-                    mState = NoteOff;
-                }
-                //
-                // Else, finally, remain in this NOTE ON state. Why? The user might stil
-                // be holding down a key
-                //
-                else
-                {
-                    mReadyForMIDI = false;
-                }
+                mReadyForMIDI = false;
             }
+            break;
+
+        case PartialPressNoteOn:
+            Serial.print(" | State: PartialPressNoteOn");
+            Serial.print(" | Velocity: "); Serial.print(mVelocity);
+            //
+            // Entering this state implies that although the bottom of the key did not return
+            // to its rest position - which would have caused the damper to turn on and mute 
+            // the string - the key was pressed again, evoking a new NOTE ON message. 
+            //
+            // However, in order to play the new NOTE ON message, during the transition, a
+            // NOTE OFF message was sent to quench the penultimate note
+            //
+            mVelocity = temp;
+            mStatus = NOTE_ON;
+            mNoteIsOn = true;
+            mReadyForMIDI = true;
+
+            mState = NoteOn;
+
             break;
         
         case NoteOff:
+            Serial.print("State: NoteOff");
+            Serial.print(" | Velocity: "); Serial.print(mVelocity);
             //
             // From the NoteOff state transition directly to the Idle state
             //
@@ -234,24 +253,8 @@ void Key::Update()
             mState = Idle;
             break;
     }
-}
-
-/**
- * @brief Return the velocity of this key scaled to 0 - 127, taking DC offset into consideration
- */
-uint8_t Key::ScaleVelocity(const int velocity)
-{
-    if (!velocity)
-    {
-        return 0;
-    }
-
-    uint8_t changeInVelocity = velocity - mBaseline;
-    uint8_t maxPossibleChangeInVelocity = 100 - mBaseline;
-
-    uint8_t scaledVelocity = static_cast<uint8_t>( (changeInVelocity/maxPossibleChangeInVelocity) * 127 );
-
-    return scaledVelocity; 
+    Serial.print(" | Damper: "); Serial.print(damperIsOn);
+    Serial.println();
 }
 
 /**
@@ -280,7 +283,7 @@ int Key::analogReadSmoothedWithEMA(const int pin)
     // https://www.luisllamas.es/en/arduino-exponential-low-pass/
     //      
 
-    int rawAnalogValue = analogRead(mPin);
+    int rawAnalogValue = analogRead(mNotePin);
 
     mSmoothedAnalogValue = mSmoothingFactor * rawAnalogValue + (1 - mSmoothingFactor) * mSmoothedAnalogValue;
     
