@@ -21,13 +21,15 @@
 #define SPI_BUS  HSPI
 #define SPI_MODE SPI_MODE0
 
+#define THRESHOLD   5
+
 static constexpr size_t BUFFER_SIZE = 8; // Size of buffer to hold tx rx data | should be at least key count
 static constexpr size_t QUEUE_SIZE = 1;  // Num of transaction b/n slave & master
 
 KeyController* octave = nullptr;
 
 const int keyPins[KEY_COUNT] {KEY_10, KEY_7};
-const int baselines[KEY_COUNT] {62, 61};
+const int damperPins[KEY_COUNT] {DAMPER_1, DAMPER_2};
 
 void setup()
 {
@@ -37,16 +39,24 @@ void setup()
   analogReadResolution(RESOLUTION);
 
   
-   Serial.begin(115200);
+  Serial.begin(115200);
   Serial.println("Starting setup ... ");
 
+  //
+  // Set up damper pins as input pullup pins
+  //
+  // Key pins do not need setup as they are ADC pins and can be read on demand
+  for (int i = 0; i < KEY_COUNT; i++)
+  {
+    pinMode(damperPins[i], INPUT);
+  }
 
   pinMode(LED_BUILTIN, OUTPUT);
 
   //
   // Create new key controller
   //
-  octave = new KeyController(KEY_COUNT, keyPins, baselines, START_NOTE, RESOLUTION);
+  octave = new KeyController(KEY_COUNT, keyPins, damperPins, THRESHOLD, START_NOTE, RESOLUTION);
   
   // initiate spi instance
   pinMode(SPI_MISO, OUTPUT);
