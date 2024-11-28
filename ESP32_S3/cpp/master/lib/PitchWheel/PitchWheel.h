@@ -27,8 +27,8 @@ class PitchWheel
         int16_t mMinBend = 0;      ///< The minimum pitch bend value scaled from the analog sensor of this pitch wheel
         int16_t mMaxBend = 0;      ///< The maximum pitch bend value scaled from the analog sensor of this pitch wheel
 
-        int16_t mDeadzoneMin = 1800;  ///< The lower boundary of the deadzone. Values within the deadzone are treated as 0
-        int16_t mDeadzoneMax = 2050;  ///< The upper boundary of the deadzone. Values within the deadzone are treated as 0
+        int16_t mDeadzoneMin = 1940;  ///< The lower boundary of the deadzone. Values within the deadzone are treated as 0
+        int16_t mDeadzoneMax = 1980;  ///< The upper boundary of the deadzone. Values within the deadzone are treated as 0
 
         int mSampleSize = 100;      ///< Number of ADC values to sample for sensor callibration
 

@@ -11,7 +11,7 @@
 #define CHANNEL      1 // Range: 1 - 16 channels available
 #define CABLE_NUMBER 1
 
-#define ADC_RESOLUTION 10
+#define ADC_RESOLUTION 12
 
 #define KEY_COUNT1 2
 #define KEY_COUNT2 2
@@ -194,10 +194,6 @@ void sendMidiMsgUpdatesOverUSB()
 {
   // pitchWheel->Update();
   // Serial.println(pitchWheel->GetBend());
-  // if (pitchWheel->GetBend())
-  // {
-  //   usbMIDI.pitchBend(pitchWheel->GetBend(), CHANNEL);
-  // }
   
   // ESP is little endian. Read buffer from LSB
 
@@ -252,6 +248,10 @@ void sendMidiMsgUpdatesOverUSB()
       if (status == NOTE_ON)
       {
         usbMIDI.noteOn(note, velocity, CHANNEL);
+        if (pitchWheel->GetBend())
+        {
+          usbMIDI.pitchBend(pitchWheel->GetBend(), CHANNEL);
+        }
       } 
       else
       {
