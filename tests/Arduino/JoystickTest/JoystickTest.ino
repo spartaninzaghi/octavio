@@ -12,13 +12,20 @@
  * the ESP32-S3-DevkitC1-N16R8  
  */
 
-#define DEADZONE_MIN   1955
-#define DEADZONE_MAX   1970
-
 #define PITCHBEND_MIN -8192
 #define PITCHBEND_MAX  8191
 
-const int pitchWheelPin = 4;
+struct PitchWheelInfo {
+  const int pin;
+  const int deadzoneMin;
+  const int deadzoneMax;
+};
+
+const PitchWheelInfo wheel1 {4, 2020, 2050};
+const PitchWheelInfo wheel2 {5, 1940, 1980};
+
+int value1 = 0;
+int value2 = 0;
 
 void setup() {
   analogReadResolution(12);
@@ -26,12 +33,25 @@ void setup() {
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  int value = analogRead(pitchWheelPin);
-  // value = map(value, 0, 4095, -8192, 8191);
+  //
+  // ----------------------------- Read Raw Analog Values --------------------------------
+  //
+  int value1 = analogRead(wheel1.pin);
+  int value2 = analogRead(wheel2.pin);
 
-  value = (value < DEADZONE_MIN) ? map(value, 0, DEADZONE_MIN, PITCHBEND_MIN, 0) : 
-          (value > DEADZONE_MAX) ? map(value, DEADZONE_MAX, 4095, 0, PITCHBEND_MAX) : 0;
+  //
+  // ----------------------------- Map Raw Values to range -------------------------------
+  //
+  value1 = (value1 < wheel1.deadzoneMin) ? map(value1, 0, wheel1.deadzoneMin, PITCHBEND_MIN, 0) : 
+           (value1 > wheel1.deadzoneMax) ? map(value1, wheel1.deadzoneMax, 4095, 0, PITCHBEND_MAX) : 0;
 
-  Serial.println(value);
+  value2 = (value2 < wheel2.deadzoneMin) ? map(value2, 0, wheel2.deadzoneMin, PITCHBEND_MIN, 0) : 
+           (value2 > wheel2.deadzoneMax) ? map(value2, wheel2.deadzoneMax, 4095, 0, PITCHBEND_MAX) : 0;
+
+  //
+  // ---------------------------------- Display Results ---------------------------------
+  //
+  //
+  Serial.println(value1);
+  Serial.println(value2);
 }
