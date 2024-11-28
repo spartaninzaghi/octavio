@@ -146,7 +146,7 @@ void Key::Update()
             // to turn on the note of this key, and the damper is off ("lifted"), update 
             // variables, inputs, and outputs. Then, transition to the NoteOn state
             //
-            if (velocity > mThreshold && !damperIsOn)
+            if (!mNoteIsOn && velocity > mThreshold && !damperIsOn)
             {
                 mVelocity = velocity;
                 mStatus = NOTE_ON;
@@ -173,7 +173,7 @@ void Key::Update()
             // bottom of the key has returned to its rest state, update variables, inputs, & 
             // outputs. Then, transition to the NoteOff state
             //
-            if (damperIsOn)
+            if (mNoteIsOn && velocity < mThreshold &&damperIsOn)
             {
                 mVelocity = 0;
                 mStatus = NOTE_OFF;
@@ -193,7 +193,7 @@ void Key::Update()
             // OFF message, otherwise the note will play forever"
             // see: https://www.cs.cmu.edu/~music/cmsip/readings/MIDI%20tutorial%20for%20programmers.html
             //
-            else if (velocity > mThreshold &&  !damperIsOn)
+            else if (mNoteIsOn && velocity > mThreshold &&  !damperIsOn)
             {
                 temp = velocity;
                 mVelocity = 0;
