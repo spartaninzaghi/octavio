@@ -90,6 +90,11 @@ int16_t PitchWheel::GetDeadzoneMax() const
     return mDeadzoneMax;
 }
 
+bool PitchWheel::IsBendChanged() const
+{
+    return mBendChanged;
+}
+
 /**
  * @brief Set the minimum bend value read by this pitch wheel's analog sensors
  * @param bendMin The new minimum bend value to set
@@ -131,8 +136,51 @@ void PitchWheel::SetDeadzoneMax(const int16_t deadzoneMax)
  */
 void PitchWheel::Update()
 {
-    int16_t value = analogRead(mPitchBendPin);
+    int16_t value = analogReadSmoothedWithEMA(mPitchBendPin);
 
     mBend = (value < mDeadzoneMin) ? map(value, 0, mDeadzoneMin, mMinBend, 0) :
             (value > mDeadzoneMax) ? map(value, mDeadzoneMax, 4095, 0, mMaxBend) : 0; 
+
+    if (mPreviousBend != mBend)
+    {
+        mBendChanged = true;
+        mPreviousBend = mBend;
+    }
+    else
+    {
+        mBendChanged = false;
+    }
+}
+
+/**
+ * @brief Read and smooth the ADC value of this key's pin using EMA
+ * 
+ * This function analog reads the value of the given ADC pin and  digitally smoothens
+ * out high frequency using an Exponential Moving Average low-pass filter. This allows
+ * the desired frequencies (lower than the cutoff frequency) to pass through unattenuated,
+ * and higher frequencies to be cut off
+ * @param pin The pin to analog read and digitally filter
+ * @return The smoothed analog value
+ */
+int PitchWheel::analogReadSmoothedWithEMA(const int pin)
+{
+    //
+    // General formula:
+    // y = (1 − α)x + αy
+    // 
+    // where
+    //     y = output
+    //     x = input
+    //     α = smoothing factor (between 0 - 1 | lower values correspond to smoother attenuation)
+    //     
+    // Credits:
+    // https://electronics.stackexchange.com/questions/176721/how-to-smooth-analog-data
+    // https://www.luisllamas.es/en/arduino-exponential-low-pass/
+    //      
+
+    int rawAnalogValue = analogRead(pin);
+
+    mSmoothedAnalogValue = mSmoothingFactor * rawAnalogValue + (1 - mSmoothingFactor) * mSmoothedAnalogValue;
+    
+    return static_cast<int>(mSmoothedAnalogValue);
 }

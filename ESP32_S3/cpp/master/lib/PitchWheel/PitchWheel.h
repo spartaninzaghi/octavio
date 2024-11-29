@@ -20,6 +20,7 @@ class PitchWheel
 
         /// The bend value for this Pitch Wheel. Ideally [-8192 <-> 0 <-> 8192]
         int16_t mBend = 0;  
+        int16_t mPreviousBend = 0;
 
         /// Accounts for deadzone region at center of analog joystick module
         int16_t mHysteresis = 50;  
@@ -27,8 +28,16 @@ class PitchWheel
         int16_t mMinBend = 0;      ///< The minimum pitch bend value scaled from the analog sensor of this pitch wheel
         int16_t mMaxBend = 0;      ///< The maximum pitch bend value scaled from the analog sensor of this pitch wheel
 
-        int16_t mDeadzoneMin = 1940;  ///< The lower boundary of the deadzone. Values within the deadzone are treated as 0
-        int16_t mDeadzoneMax = 1980;  ///< The upper boundary of the deadzone. Values within the deadzone are treated as 0
+        int16_t mDeadzoneMin = 1800;  ///< The lower boundary of the deadzone. Values within the deadzone are treated as 0
+        int16_t mDeadzoneMax = 2100;  ///< The upper boundary of the deadzone. Values within the deadzone are treated as 0
+
+        /// Smoothing factor to digitally filter analog data using Exponential Moving Average (EMA) LPF
+        const float mSmoothingFactor = 0.4;
+
+        /// The smoothed ADC value
+        float mSmoothedAnalogValue = 0.0;
+
+        bool mBendChanged = false;
 
         int mSampleSize = 100;      ///< Number of ADC values to sample for sensor callibration
 
@@ -43,6 +52,7 @@ class PitchWheel
         int16_t GetMaxBend() const;
         int16_t GetDeadzoneMin() const;
         int16_t GetDeadzoneMax() const;
+        bool IsBendChanged() const;
 
         // ----------------------------------- Getters ------------------------------------
         void SetMinBend(const int16_t bendMin);
@@ -52,6 +62,7 @@ class PitchWheel
         
         // --------------------------------- Core Methods ---------------------------------
         void Update();
+        int analogReadSmoothedWithEMA(const int pin);
 
 
         PitchWheel() = delete;                       ///< Default constructor disabled
