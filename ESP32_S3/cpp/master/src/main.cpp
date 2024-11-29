@@ -192,8 +192,7 @@ void querySlaves()
  */
 void sendMidiMsgUpdatesOverUSB()
 {
-  // pitchWheel->Update();
-  Serial.println(pitchWheel->GetBend());
+  // Serial.println(pitchWheel->GetBend());
   if (pitchWheel->IsBendChanged())
   {
     usbMIDI.pitchBend(pitchWheel->GetBend(), CHANNEL);

@@ -37,6 +37,7 @@ class PitchWheel
         /// The smoothed ADC value
         float mSmoothedAnalogValue = 0.0;
 
+        ///< Flag indicating whether the bend value for this pitch wheel changed
         bool mBendChanged = false;
 
         int mSampleSize = 100;      ///< Number of ADC values to sample for sensor callibration

@@ -90,6 +90,10 @@ int16_t PitchWheel::GetDeadzoneMax() const
     return mDeadzoneMax;
 }
 
+/**
+ * @brief Returns whether or not the bend value for this pitch wheel changed
+ * @return Flag indicating whether or not the bend value for this pitch wheel changed
+ */
 bool PitchWheel::IsBendChanged() const
 {
     return mBendChanged;
