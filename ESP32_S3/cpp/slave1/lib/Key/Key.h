@@ -9,6 +9,7 @@
 #define KEY_H
 
 #include <Arduino.h>
+#include <DigitalFilter.h>
 #include <Utility.h>
 
 class Key
@@ -43,8 +44,7 @@ private:
     /// Smoothing factor to digitally filter analog data using Exponential Moving Average (EMA) LPF
     const float mSmoothingFactor = 0.4;
 
-    /// The smoothed ADC value
-    float mSmoothedAnalogValue = 0.0;
+    DigitalFilter* mDigitalFilter = nullptr;
 
     /// @brief  Temporary variable for managing edgy transitions in state machine
     int temp = 0;

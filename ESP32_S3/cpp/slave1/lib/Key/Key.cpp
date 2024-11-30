@@ -14,7 +14,13 @@
  * @param thershold The trigger point that evokes a NOTE ON status for this key (range: 0 - 127)
  */
 Key::Key(const int notePin, const int damperPin, const uint8_t note, const int maxAdcValue, const int threshold) : 
-    mNotePin(notePin), mDamperPin(damperPin), mNote(note), mMaxAdcValue(maxAdcValue), mThreshold(threshold) {}
+    mNotePin(notePin), mDamperPin(damperPin), mNote(note), mMaxAdcValue(maxAdcValue), mThreshold(threshold) 
+{
+    //
+    // Initialize digital EMA Filter
+    //
+    mDigitalFilter = new DigitalFilter(mSmoothingFactor);
+}
 
 /**
  * @brief Set the ADC pin that reads the note velocity values of this key
@@ -255,37 +261,4 @@ void Key::Update()
     }
     Serial.print(" | Damper: "); Serial.print(damperIsOn);
     Serial.println();
-}
-
-/**
- * @brief Read and smooth the ADC value of this key's pin using EMA
- * 
- * This function analog reads the value of the given ADC pin and  digitally smoothens
- * out high frequency using an Exponential Moving Average low-pass filter. This allows
- * the desired frequencies (lower than the cutoff frequency) to pass through unattenuated,
- * and higher frequencies to be cut off
- * @param pin The pin to analog read and digitally filter
- * @return The smoothed analog value
- */
-int Key::analogReadSmoothedWithEMA(const int pin)
-{
-    //
-    // General formula:
-    // y = (1 − α)x + αy
-    // 
-    // where
-    //     y = output
-    //     x = input
-    //     α = smoothing factor (between 0 - 1 | lower values correspond to smoother attenuation)
-    //     
-    // Credits:
-    // https://electronics.stackexchange.com/questions/176721/how-to-smooth-analog-data
-    // https://www.luisllamas.es/en/arduino-exponential-low-pass/
-    //      
-
-    int rawAnalogValue = analogRead(mNotePin);
-
-    mSmoothedAnalogValue = mSmoothingFactor * rawAnalogValue + (1 - mSmoothingFactor) * mSmoothedAnalogValue;
-    
-    return static_cast<int>(mSmoothedAnalogValue);
 }
