@@ -22,10 +22,10 @@
 class DigitalFilter
 {
     private:
-        /// @brief Smoothing factor b/n 0 and 1 for digital filtering. Lower values correspond to more smoothening.
+        /// Smoothing factor b/n 0 and 1 for digital filtering. Lower values correspond to more smoothening.
         float mSmoothingFactor = 0.01; 
 
-        /// @brief The tracker
+        /// The tracker to store the smoothed analog value for calculations
         float mSmoothedAnalogValue = 0.0;
 
     public:
