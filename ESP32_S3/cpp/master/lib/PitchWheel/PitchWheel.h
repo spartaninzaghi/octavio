@@ -10,6 +10,7 @@
 #define PITCH_WHEEL_H
 
 #include <Arduino.h>
+#include <DigitalFilter.h>
 
 class PitchWheel
 {
@@ -25,17 +26,16 @@ class PitchWheel
         /// Accounts for deadzone region at center of analog joystick module
         int16_t mHysteresis = 50;  
         
-        int16_t mMinBend = 0;      ///< The minimum pitch bend value scaled from the analog sensor of this pitch wheel
-        int16_t mMaxBend = 0;      ///< The maximum pitch bend value scaled from the analog sensor of this pitch wheel
+        int16_t mMinBend = 0;  ///< The minimum pitch bend value scaled from the analog sensor of this pitch wheel
+        int16_t mMaxBend = 0;  ///< The maximum pitch bend value scaled from the analog sensor of this pitch wheel
 
         int16_t mDeadzoneMin = 1800;  ///< The lower boundary of the deadzone. Values within the deadzone are treated as 0
         int16_t mDeadzoneMax = 2100;  ///< The upper boundary of the deadzone. Values within the deadzone are treated as 0
 
         /// Smoothing factor to digitally filter analog data using Exponential Moving Average (EMA) LPF
-        const float mSmoothingFactor = 0.4;
+        const float mSmoothingFactor = 0.1;
 
-        /// The smoothed ADC value
-        float mSmoothedAnalogValue = 0.0;
+        DigitalFilter* mDigitalFilter = nullptr;
 
         ///< Flag indicating whether the bend value for this pitch wheel changed
         bool mBendChanged = false;
@@ -63,7 +63,6 @@ class PitchWheel
         
         // --------------------------------- Core Methods ---------------------------------
         void Update();
-        int analogReadSmoothedWithEMA(const int pin);
 
 
         PitchWheel() = delete;                       ///< Default constructor disabled
