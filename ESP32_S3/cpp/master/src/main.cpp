@@ -5,13 +5,13 @@
 
 #include <Slave.h>
 #include <RotaryEncoder.h>
-#include <PitchWheel.h>
+#include <Wheel.h>
 #include <Utility.h>
 
 #define CHANNEL      1 // Range: 1 - 16 channels available
 #define CABLE_NUMBER 1
 
-#define ADC_RESOLUTION 12
+#define ADC_RESOLUTION 10
 
 #define KEY_COUNT1 2
 #define KEY_COUNT2 2
@@ -27,7 +27,14 @@
 #define PITCHBEND_MIN -8192
 #define PITCHBEND_MAX  8191
 
-PitchWheel *pitchWheel = nullptr;
+#define MODULATION_PIN  5
+#define MODULATION_MIN  0
+#define MODULATION_MAX  127
+#define MODULATION_CC   1
+
+// ------------------------ Peripheral initialization -------------------------
+Wheel *pitchWheel = nullptr;
+Wheel *modulationWheel = nullptr;
 RotaryEncoder *transposeKnob = nullptr;
 
 // ----------------------------- Set up SPI macros ----------------------------
@@ -77,11 +84,18 @@ void setup()
   digitalWrite(LED_BUILTIN, LOW);
 
   //
-  // ---------------------------- Pitch Bend Setup -------------------------------
+  // ---------------------------- Pitch Bend Wheel Setup -------------------------------
   //
-  // No ADC pin setup required for pitch bend. Simply use values directly
+  // No ADC pin setup required for pitch bend wheel. Simply use values directly
   //
-  pitchWheel = new PitchWheel(PITCHBEND_PIN, PITCHBEND_MIN, PITCHBEND_MAX);
+  pitchWheel = new Wheel(PITCHBEND_PIN, ADC_RESOLUTION, PITCHBEND_MIN, PITCHBEND_MAX);
+
+  //
+  // ---------------------------- Modulation Wheel Setup -------------------------------
+  //
+  // No ADC pin setup required for modulation wheel. Simply use values directly
+  //
+  modulationWheel = new Wheel(MODULATION_PIN, ADC_RESOLUTION, MODULATION_MIN, MODULATION_MAX);
 
   //
   // ---------------------------- Transpose Setup -------------------------------
@@ -142,6 +156,7 @@ void loop()
   // ------------------------- Update Peripherals -------------------------
   //
   pitchWheel->Update();
+  modulationWheel->Update();
   transposeKnob->Update();
 
   //
@@ -193,9 +208,20 @@ void querySlaves()
 void sendMidiMsgUpdatesOverUSB()
 {
   // Serial.println(pitchWheel->GetBend());
-  if (pitchWheel->IsBendChanged())
+  //
+  // ------------------------ Send Pitch Bend Message ---------------------------
+  //
+  if (pitchWheel->IsReadingChanged())
   {
-    usbMIDI.pitchBend(pitchWheel->GetBend(), CHANNEL);
+    usbMIDI.pitchBend(pitchWheel->GetReading(), CHANNEL);
+  }
+
+  //
+  // ------------------ Send Modulation (MIDI CC 1) Message -------------------
+  //
+  if (modulationWheel->IsReadingChanged())
+  {
+    usbMIDI.controlChange(MODULATION_CC, (uint8_t)modulationWheel->GetReading(), CHANNEL);
   }
   
   // ESP is little endian. Read buffer from LSB
