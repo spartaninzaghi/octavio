@@ -136,7 +136,7 @@ void Wheel::Update()
     int16_t value = mDigitalFilter->analogReadSmoothedWithEMA(mWheelPin);
 
     mReading = (value < mDeadzoneMin) ? map(value, 0, mDeadzoneMin, mRangeMin, 0) :
-               (value > mDeadzoneMax) ? map(value, mDeadzoneMax, 4095, 0, mRangeMax) : 0; 
+               (value > mDeadzoneMax) ? map(value, mDeadzoneMax, mMaxAnalogValue, 0, mRangeMax) : 0; 
 
     //
     // Set the mReadingChanged flag if the value read for this wheel changed

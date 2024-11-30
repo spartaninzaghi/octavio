@@ -17,22 +17,24 @@ class Wheel
 {
     private:
 
-        const int mWheelPin = 4;      /// The ADC pin used to poll analog data for this Wheel
-        int mMaxAnalogValue = 1023;   /// The maximum analog value readable on the ADC pin(s) of this wheel
+        const int mWheelPin = 0;   /// The ADC pin used to poll analog data for this Wheel
+        int mMaxAnalogValue = 0;   /// The maximum analog value readable on the ADC pin(s) of this wheel
 
-        int16_t mReading = 0;         ///< The analog reading on the ADC pin of this wheel
-        int16_t mPrevReading = 0;     ///< The last analog value read on the ADC pin of this wheel
+        int16_t mReading = 0;      ///< The analog reading on the ADC pin of this wheel
+        int16_t mPrevReading = 0;  ///< The last analog value read on the ADC pin of this wheel
         
-        int mSampleSize = 100;        ///< Number of ADC values to sample for sensor callibration
+        int mSampleSize = 100;     ///< Number of ADC values to sample for sensor callibration
         
-        int16_t mRangeMin = 0;        ///< The minimum pitch bend value scaled from the analog sensor of this pitch wheel
-        int16_t mRangeMax = 0;        ///< The maximum pitch bend value scaled from the analog sensor of this pitch wheel
+        int16_t mRangeMin = 0;     ///< The minimum pitch bend value scaled from the analog sensor of this pitch wheel
+        int16_t mRangeMax = 0;     ///< The maximum pitch bend value scaled from the analog sensor of this pitch wheel
         
-        int16_t mDeadzoneMin = 1800;  ///< The lower boundary of the deadzone. Values within the deadzone are treated as 0
-        int16_t mDeadzoneMax = 2100;  ///< The upper boundary of the deadzone. Values within the deadzone are treated as 0
+        int16_t mDeadzoneMin = 0;  ///< The lower boundary of the deadzone. Values within the deadzone are treated as 0
+        int16_t mDeadzoneMax = 0;  ///< The upper boundary of the deadzone. Values within the deadzone are treated as 0
 
-        /// Add and subtract hysteresis to average reading during callibration to account for deadzone at the joystick's center
-        int16_t mHysteresis = 100;  
+        int16_t mHysteresis = 100; ///< The padding used to account for deadzone at the joystick's center during callibration  
+
+        /// Debounce time to reduce the rate at which messages are sent w.r.t this wheel
+        unsigned long mDebounceTime = 10;
 
         /// Smoothing factor to digitally filter analog data using Exponential Moving Average (EMA) LPF
         const float mSmoothingFactor = 0.1;
