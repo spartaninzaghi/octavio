@@ -1,5 +1,5 @@
 # octavIO
-octavIO 25-Key Scalable MIDI Keyboard using ESP32-S3
+octavIO 25-Key Scalable MIDI Keyboard using ESP32-S3 (interoperable with ESP32 WROOM 32 and other boards after prototype 4)
 
 The current version includes prototype with ESP32-S3-DevkitC1-N16R8. The schematic and images of the hardware setup for the current protoype are included below.
 
