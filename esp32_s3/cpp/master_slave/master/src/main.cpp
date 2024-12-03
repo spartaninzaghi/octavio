@@ -57,7 +57,7 @@ const uint8_t notes2[KEY_COUNT2] {0x3C, 0x3D}; // {C4, C4#} for testing
 uint8_t rxBuffer1[BUFFER_SIZE1] {0};
 uint8_t rxBuffer2[BUFFER_SIZE2] {0};
 
-// Create USB2IDI instance
+// Create USBMIDI instance
 USBMIDI usbMIDI;
 
 // --------------------------- Function Declarations -----------------------------
