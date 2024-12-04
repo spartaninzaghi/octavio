@@ -10,6 +10,8 @@
  *
  * This test is conducted on the Arduino IDE 2.3.3, and the MCU used is
  * the ESP32-S3-DevkitC1-N16R8  
+ *
+ * Joysticks are currently being used for both pitch bending and modulation
  */
 
 #define PITCHBEND_MIN -8192
@@ -51,7 +53,8 @@ void loop() {
   //
   // ---------------------------------- Display Results ---------------------------------
   //
-  //
+  Serial.println("Values ...........................");
   Serial.println(value1);
   Serial.println(value2);
+  Serial.println("..................................");
 }
