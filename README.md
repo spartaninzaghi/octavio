@@ -7,7 +7,7 @@ The current version includes prototype with ESP32-S3-DevkitC1-N16R8. The schemat
 ![v2 1_hardware_schematic_grid](https://github.com/user-attachments/assets/32545c08-1097-410c-92c7-284a4804e36f)
 
 # Hardware Setup
-![v2 1_playing_C4_note_on_bandlab_iOS_topview](https://github.com/user-attachments/assets/6449a432-a545-493e-bfeb-796e9db91419)
+![v3 1_full-system_plan](https://github.com/user-attachments/assets/9ba8d7f0-1f8c-473b-80a9-3878e8d2335a)
 
 # 3-Resistor Voltage Divider DC Offset Circuit
 ![image](https://github.com/user-attachments/assets/008523da-6e5c-458b-8677-bd4b666d11bf)
